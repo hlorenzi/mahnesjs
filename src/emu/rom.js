@@ -16,8 +16,8 @@ export class ROM
 		this.prgByteNum = this.prg16KBBankNum * 0x4000
 		this.chrByteNum = this.chr8KBBankNum * 0x2000
 		
-		this.prgROM = buffer.slice(16, buffer.length - 16)
-		this.chrROM = buffer.slice(16 + this.prgByteNum, buffer.length - 16 - this.prgByteNum)
+		this.prgROM = buffer.slice(16, 16 + this.prgByteNum)
+		this.chrROM = buffer.slice(16 + this.prgByteNum, 16 + this.prgByteNum + this.chrByteNum)
 		
 		this.mapperId = (buffer[7] & 0xf0) | ((buffer[6] & 0xf0) >> 4)
 	
@@ -28,6 +28,8 @@ export class ROM
 		this.hasBusConflicts = (buffer[10] & 0x20) != 0
 		
 		this.region = buffer[10] & 0x3
+		
+		console.log(this)
 	}
 	
 	

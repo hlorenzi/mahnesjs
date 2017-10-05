@@ -4,5 +4,11 @@
 
 An HTML5/JavaScript NES emulator!
 
-Currently, there is only basic CPU emulation.  
-Watch the CPU execution through the debugging console!
+Currently, there is only basic CPU and PPU emulation.
+
+Input is as follows:
+- `A`: Spacebar
+- `B`: X
+- `Start`: Enter
+- `Select`: Left Ctrl
+- `D-Pad`: Arrow Keys

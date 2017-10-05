@@ -1,190 +1,4 @@
-// Opcode mnemonics
-const BRK     = 0x00
-
-const PLA     = 0x68
-const PLP     = 0x28
-const PHA     = 0x48
-const PHP     = 0x08
-
-const JMP_ABS = 0x4c
-const JMP_IND = 0x6c
-const BPL     = 0x10
-const BMI     = 0x30
-const BVC     = 0x50
-const BVS     = 0x70
-const BCC     = 0x90
-const BCS     = 0xb0
-const BNE     = 0xd0
-const BEQ     = 0xf0
-
-const JSR     = 0x20
-const RTI     = 0x40
-const RTS     = 0x60
-
-const LDA_IMM = 0xa9
-const LDA_ZER = 0xa5
-const LDA_ZRX = 0xb5
-const LDA_ABS = 0xad
-const LDA_ABX = 0xbd
-const LDA_ABY = 0xb9
-const LDA_PTX = 0xa1
-const LDA_PTY = 0xb1
-
-const LDX_IMM = 0xa2
-const LDX_ZER = 0xa6
-const LDX_ZRY = 0xb6
-const LDX_ABS = 0xae
-const LDX_ABY = 0xbe
-
-const LDY_IMM = 0xa0
-const LDY_ZER = 0xa4
-const LDY_ZRX = 0xb4
-const LDY_ABS = 0xac
-const LDY_ABX = 0xbc
-
-const STA_ZER = 0x85
-const STA_ZRX = 0x95
-const STA_ABS = 0x8d
-const STA_ABX = 0x9d
-const STA_ABY = 0x99
-const STA_PTX = 0x81
-const STA_PTY = 0x91
-
-const STX_ZER = 0x86
-const STX_ZRY = 0x96
-const STX_ABS = 0x8e
-
-const STY_ZER = 0x84
-const STY_ZRX = 0x94
-const STY_ABS = 0x8c
-
-const AND_IMM = 0x29
-const AND_ZER = 0x25
-const AND_ZRX = 0x35
-const AND_ABS = 0x2d
-const AND_ABX = 0x3d
-const AND_ABY = 0x39
-const AND_PTX = 0x21
-const AND_PTY = 0x31
-
-const ORA_IMM = 0x09
-const ORA_ZER = 0x05
-const ORA_ZRX = 0x15
-const ORA_ABS = 0x0d
-const ORA_ABX = 0x1d
-const ORA_ABY = 0x19
-const ORA_PTX = 0x01
-const ORA_PTY = 0x11
-
-const EOR_IMM = 0x49
-const EOR_ZER = 0x45
-const EOR_ZRX = 0x55
-const EOR_ABS = 0x4d
-const EOR_ABX = 0x5d
-const EOR_ABY = 0x59
-const EOR_PTX = 0x41
-const EOR_PTY = 0x51
-
-const ADC_IMM = 0x69
-const ADC_ZER = 0x65
-const ADC_ZRX = 0x75
-const ADC_ABS = 0x6d
-const ADC_ABX = 0x7d
-const ADC_ABY = 0x79
-const ADC_PTX = 0x61
-const ADC_PTY = 0x71
-
-const SBC_IMM = 0xe9
-const SBC_ZER = 0xe5
-const SBC_ZRX = 0xf5
-const SBC_ABS = 0xed
-const SBC_ABX = 0xfd
-const SBC_ABY = 0xf9
-const SBC_PTX = 0xe1
-const SBC_PTY = 0xf1
-
-const CMP_IMM = 0xc9
-const CMP_ZER = 0xc5
-const CMP_ZRX = 0xd5
-const CMP_ABS = 0xcd
-const CMP_ABX = 0xdd
-const CMP_ABY = 0xd9
-const CMP_PTX = 0xc1
-const CMP_PTY = 0xd1
-
-const CPX_IMM = 0xe0
-const CPX_ZER = 0xe4
-const CPX_ABS = 0xec
-
-const CPY_IMM = 0xc0
-const CPY_ZER = 0xc4
-const CPY_ABS = 0xcc
-
-const INX     = 0xe8
-const DEX     = 0xca
-const INY     = 0xc8
-const DEY     = 0x88
-
-const INC_ZER = 0xe6
-const INC_ZRX = 0xf6
-const INC_ABS = 0xee
-const INC_ABX = 0xfe
-
-const DEC_ZER = 0xc6
-const DEC_ZRX = 0xd6
-const DEC_ABS = 0xce
-const DEC_ABX = 0xde
-
-const ASL_IMP = 0x0a
-const ASL_ZER = 0x06
-const ASL_ZRX = 0x16
-const ASL_ABS = 0x0e
-const ASL_ABX = 0x1e
-
-const LSR_IMP = 0x4a
-const LSR_ZER = 0x46
-const LSR_ZRX = 0x56
-const LSR_ABS = 0x4e
-const LSR_ABX = 0x5e
-
-const ROL_IMP = 0x2a
-const ROL_ZER = 0x26
-const ROL_ZRX = 0x36
-const ROL_ABS = 0x2e
-const ROL_ABX = 0x3e
-
-const ROR_IMP = 0x6a
-const ROR_ZER = 0x66
-const ROR_ZRX = 0x76
-const ROR_ABS = 0x6e
-const ROR_ABX = 0x7e
-
-const BIT_ZER = 0x24
-const BIT_ABS = 0x2c
-
-const TXA     = 0x8a
-const TAX     = 0xaa
-const TYA     = 0x98
-const TAY     = 0xa8
-const TXS     = 0x9a
-const TSX     = 0xba
-
-const CLC     = 0x18
-const SEC     = 0x38
-const CLI     = 0x58
-const SEI     = 0x78
-const CLD     = 0xd8
-const SED     = 0xf8
-const CLV     = 0xb8
-
-const NOP     = 0xea
-const NOP_2   = 0x1a
-const NOP_3   = 0x3a
-const NOP_4   = 0x5a
-const NOP_5   = 0x7a
-const NOP_6   = 0xda
-const NOP_7   = 0xfa
-const NOP_8   = 0x80
+import * as opcode from "./cpu_opcodes.js"
 
 // Processor status flags
 const FLAG_C = 0b00000001 // Carry
@@ -225,13 +39,17 @@ export class CPU
 		this.read = (addr) => 0
 		this.write = (addr, val) => { }
 		
+		this.hookExecuteInstruction = (addr, byte1, byte2, byte3) => { }
+		
 		this.signalNMI = false
+		this.acknowledgeNMI = false
 		this.signalIRQ = false
 		
 		this.opcode = 0
 		this.opcodeStep = 0
 		
 		this.resetRoutine = false
+		this.nmiRoutine = false
 		
 		this.regPC = 0
 		this.regA = 0
@@ -332,12 +150,30 @@ export class CPU
 	}
 	
 	
+	driveNMI(active)
+	{
+		if (!this.signalNMI && active)
+			this.acknowledgeNMI = true
+		
+		this.signalNMI = active
+	}
+	
+	
+	driveIRQ()
+	{
+		this.signalIRQ = true
+	}
+	
+	
 	run()
 	{
 		this.opcodeStep += 1
 		
 		if (this.resetRoutine)
 			this.runReset()
+		
+		else if (this.nmiRoutine)
+			this.runNMI()
 		
 		else switch (this.opcodeStep)
 		{
@@ -387,10 +223,49 @@ export class CPU
 	}
 	
 	
+	runNMI()
+	{
+		switch (this.opcodeStep)
+		{
+			case 2:
+				this.pushStack(this.regPC >> 8)
+				break
+			case 3:
+				this.pushStack(this.regPC & 0xff)
+				break
+			case 4:
+				this.pushStack(this.packP())
+				break
+			case 6:
+				this.regPC = this.read(0xfffa)
+				break
+			case 7:
+				this.regPC |= this.read(0xfffb) << 8
+				this.nmiRoutine = false
+				this.endOpcode()
+				break
+		}
+	}
+	
+	
 	runOpcodeStep1()
 	{
-		this.opcode = this.read(this.regPC)
-		this.incrementPC()
+		if (this.acknowledgeNMI)
+		{
+			this.acknowledgeNMI = false
+			this.nmiRoutine = true
+		}
+		
+		else
+		{
+			this.opcode = this.read(this.regPC)
+			
+			const pcPlus1 = this.increment16Bit(this.regPC)
+			const pcPlus2 = this.increment16Bit(pcPlus1)
+			this.hookExecuteInstruction(this.regPC, this.opcode, this.read(pcPlus1), this.read(pcPlus2))
+			
+			this.incrementPC()
+		}
 	}
 	
 	
@@ -426,8 +301,8 @@ export class CPU
 				this.incrementPC()
 				break
 			case STK:
-				this.internalAddr = this.read(this.regPC)
-				if (this.opcode == BRK || this.opcode == JSR)
+				this.internalData = this.read(this.regPC)
+				if (this.opcode == opcode.BRK || this.opcode == opcode.JSR)
 					this.incrementPC()
 				break
 			default:
@@ -462,11 +337,11 @@ export class CPU
 				break
 			case ZRX:
 				this.read(this.internalAddr) // Dummy read
-				this.calculateAddrForZeroPageIndexed(this.regX)
+				this.internalAddr = this.calculateEffectiveAddr(this.internalAddr, this.regX, false)
 				break
 			case ZRY:
 				this.read(this.internalAddr) // Dummy read
-				this.calculateAddrForZeroPageIndexed(this.regY)
+				this.internalAddr = this.calculateEffectiveAddr(this.internalAddr, this.regY, false)
 				break
 			case ABS:
 			case ABX:
@@ -474,7 +349,7 @@ export class CPU
 			case IND:
 				this.internalAddr |= this.read(this.regPC) << 8
 				this.incrementPC()
-				if (this.opcode == JMP_ABS)
+				if (this.opcode == opcode.JMP_ABS)
 				{
 					this.regPC = this.internalAddr
 					this.endOpcode()
@@ -483,10 +358,9 @@ export class CPU
 				break
 			case PTX:
 				this.read(this.internalAddr) // Dummy read
-				this.calculateAddrForPTX()
+				this.internalData = (this.internalAddr + this.regX) & 0xff
 				break
 			case PTY:
-				// VERIFY: Data?
 				this.internalData = this.read(this.internalAddr)
 				break
 			case REL:
@@ -494,14 +368,14 @@ export class CPU
 				var branchTaken = false
 				switch (this.opcode)
 				{
-					case BPL: branchTaken = !this.flagN; break
-					case BMI: branchTaken =  this.flagN; break
-					case BVC: branchTaken = !this.flagV; break
-					case BVS: branchTaken =  this.flagV; break
-					case BCC: branchTaken = !this.flagC; break
-					case BCS: branchTaken =  this.flagC; break
-					case BNE: branchTaken = !this.flagZ; break
-					case BEQ: branchTaken =  this.flagZ; break
+					case opcode.BPL: branchTaken = !this.flagN; break
+					case opcode.BMI: branchTaken =  this.flagN; break
+					case opcode.BVC: branchTaken = !this.flagV; break
+					case opcode.BVS: branchTaken =  this.flagV; break
+					case opcode.BCC: branchTaken = !this.flagC; break
+					case opcode.BCS: branchTaken =  this.flagC; break
+					case opcode.BNE: branchTaken = !this.flagZ; break
+					case opcode.BEQ: branchTaken =  this.flagZ; break
 					default: this.throwUnhandledStep()
 				}
 				
@@ -515,24 +389,24 @@ export class CPU
 			case STK:
 				switch (this.opcode)
 				{
-					case BRK:
+					case opcode.BRK:
 						this.pushStack(this.regPC >> 8)
 						break
-					case RTI:
-					case RTS:
-					case PLA:
-					case PLP:
+					case opcode.RTI:
+					case opcode.RTS:
+					case opcode.PLA:
+					case opcode.PLP:
 						this.incrementS()
 						break
-					case PHA:
+					case opcode.PHA:
 						this.pushStack(this.regA)
 						this.endOpcode()
 						break
-					case PHP:
+					case opcode.PHP:
 						this.pushStack(this.packP() | FLAG_B | FLAG_U)
 						this.endOpcode()
 						break
-					case JSR:
+					case opcode.JSR:
 						break
 					default:
 						this.throwUnhandledStep()
@@ -575,9 +449,13 @@ export class CPU
 				break
 			case ABX:
 			{
-				let addrWithoutCarry = this.calculateAddrForAbsoluteIndexed(this.regX)
-				this.internalData = this.read(addrWithoutCarry) // Dummy read if address needs carry
-				if (this.internalAddr == addrWithoutCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				let addrWithoutCarry = this.calculateEffectiveAddr(this.internalAddr, this.regX, false)
+				let addrWithCarry = this.calculateEffectiveAddr(this.internalAddr, this.regX, true)
+				
+				this.internalAddr = addrWithCarry
+				this.internalData = this.read(addrWithoutCarry) // Wrong read if address needs carry
+				
+				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
 				{
 					this.runOperationRead()
 					this.endOpcode()
@@ -586,9 +464,13 @@ export class CPU
 			}
 			case ABY:
 			{
-				let addrWithoutCarry = this.calculateAddrForAbsoluteIndexed(this.regY)
-				this.internalData = this.read(addrWithoutCarry) // Dummy read if address needs carry
-				if (this.internalAddr == addrWithoutCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				let addrWithoutCarry = this.calculateEffectiveAddr(this.internalAddr, this.regY, false)
+				let addrWithCarry = this.calculateEffectiveAddr(this.internalAddr, this.regY, true)
+				
+				this.internalAddr = addrWithCarry
+				this.internalData = this.read(addrWithoutCarry) // Wrong read if address needs carry
+				
+				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
 				{
 					this.runOperationRead()
 					this.endOpcode()
@@ -622,26 +504,28 @@ export class CPU
 			case STK:
 				switch (this.opcode)
 				{
-					case BRK:
+					case opcode.BRK:
 						this.pushStack(this.regPC & 0xff)
 						break
-					case RTI:
-						this.unpackP(this.popStack())
+					case opcode.RTI:
+						this.unpackP(this.readStack())
+						this.incrementS()
 						break
-					case RTS:
-						this.regPC = this.popStack()
+					case opcode.RTS:
+						this.regPC = this.readStack()
+						this.incrementS()
 						break
-					case PLA:
-						this.regA = this.popStack()
+					case opcode.PLA:
+						this.regA = this.readStack()
 						this.setFlagZero(this.regA)
 						this.setFlagNegative(this.regA)
 						this.endOpcode()
 						break
-					case PLP:
-						this.unpackP(this.popStack())
+					case opcode.PLP:
+						this.unpackP(this.readStack())
 						this.endOpcode()
 						break
-					case JSR:
+					case opcode.JSR:
 						this.pushStack(this.regPC >> 8)
 						break
 					default:
@@ -693,10 +577,13 @@ export class CPU
 				break
 			case PTY:
 			{
-				let addrWithoutCarry = this.calculateAddrForPTY()
-				this.read(addrWithoutCarry) // Dummy read if address needs carry
+				let addrWithoutCarry = this.calculateEffectiveAddr(this.internalAddr, this.regY, false)
+				let addrWithCarry = this.calculateEffectiveAddr(this.internalAddr, this.regY, true)
 				
-				if (this.internalAddr == addrWithoutCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				this.internalAddr = addrWithCarry
+				this.internalData = this.read(addrWithoutCarry)
+				
+				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
 				{
 					this.runOperationRead()
 					this.endOpcode()
@@ -712,19 +599,21 @@ export class CPU
 				this.regPC = this.internalData
 				this.regPC |= this.read((this.internalAddr & 0xff00) | ((this.internalAddr + 1) & 0xff)) << 8
 				this.endOpcode()
+				break
 			case STK:
 				switch (this.opcode)
 				{
-					case BRK:
+					case opcode.BRK:
 						this.pushStack(this.packP())
 						break
-					case RTI:
-						this.regPC = this.popStack()
+					case opcode.RTI:
+						this.regPC = this.readStack()
+						this.incrementS()
 						break
-					case RTS:
-						this.regPC |= this.popStack() << 8
+					case opcode.RTS:
+						this.regPC |= this.readStack() << 8
 						break
-					case JSR:
+					case opcode.JSR:
 						this.pushStack(this.regPC & 0xff)
 						break
 					default:
@@ -775,18 +664,18 @@ export class CPU
 			case STK:
 				switch (this.opcode)
 				{
-					case BRK:
+					case opcode.BRK:
 						this.regPC = this.read(0xfffe)
 						break
-					case RTI:
-						this.regPC |= this.popStack() << 8
+					case opcode.RTI:
+						this.regPC |= this.readStack() << 8
 						this.endOpcode()
 						break
-					case RTS:
+					case opcode.RTS:
 						this.incrementPC()
 						this.endOpcode()
 						break
-					case JSR:
+					case opcode.JSR:
 						this.regPC = this.internalData | (this.read(this.regPC) << 8)
 						this.endOpcode()
 						break
@@ -843,106 +732,106 @@ export class CPU
 	{
 		switch (this.opcode)
 		{
-			case NOP:
-			case NOP_2:
-			case NOP_3:
-			case NOP_4:
-			case NOP_5:
-			case NOP_6:
-			case NOP_7:
-			case NOP_8:
-			case PHA:
-			case PLA:
-			case PHP:
-			case PLP:
+			case opcode.NOP:
+			case opcode.NOP_2:
+			case opcode.NOP_3:
+			case opcode.NOP_4:
+			case opcode.NOP_5:
+			case opcode.NOP_6:
+			case opcode.NOP_7:
+			case opcode.NOP_8:
+			case opcode.PHA:
+			case opcode.PLA:
+			case opcode.PHP:
+			case opcode.PLP:
 				break
 				
-			case CLC:
+			case opcode.CLC:
 				this.flagC = false
 				break
-			case SEC:
+			case opcode.SEC:
 				this.flagC = true
 				break
-			case CLI:
+			case opcode.CLI:
 				this.flagI = false
 				break
-			case SEI:
+			case opcode.SEI:
 				this.flagI = true
 				break
-			case CLD:
+			case opcode.CLD:
 				this.flagD = false
 				break
-			case SED:
+			case opcode.SED:
 				this.flagD = true
 				break
-			case CLV:
+			case opcode.CLV:
 				this.flagV = false
 				break
 				
-			case TXA:
+			case opcode.TXA:
 				this.regA = this.regX
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case TAX:
+			case opcode.TAX:
 				this.regX = this.regA
 				this.setFlagZero(this.regX)
 				this.setFlagNegative(this.regX)
 				break
-			case TYA:
+			case opcode.TYA:
 				this.regA = this.regY
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case TAY:
+			case opcode.TAY:
 				this.regY = this.regA
 				this.setFlagZero(this.regY)
 				this.setFlagNegative(this.regY)
 				break
-			case TXS:
+			case opcode.TXS:
 				this.regS = this.regX
 				break
-			case TSX:
+			case opcode.TSX:
 				this.regX = this.regS
 				this.setFlagZero(this.regX)
 				this.setFlagNegative(this.regX)
 				break
 				
-			case INX:
+			case opcode.INX:
 				this.regX = this.increment8Bit(this.regX)
 				this.setFlagZero(this.regX)
 				this.setFlagNegative(this.regX)
 				break
-			case DEX:
+			case opcode.DEX:
 				this.regX = this.decrement8Bit(this.regX)
 				this.setFlagZero(this.regX)
 				this.setFlagNegative(this.regX)
 				break
-			case INY:
+			case opcode.INY:
 				this.regY = this.increment8Bit(this.regY)
 				this.setFlagZero(this.regY)
 				this.setFlagNegative(this.regY)
 				break
-			case DEY:
+			case opcode.DEY:
 				this.regY = this.decrement8Bit(this.regY)
 				this.setFlagZero(this.regY)
 				this.setFlagNegative(this.regY)
 				break
 				
-			case ASL_IMP:
+			case opcode.ASL_IMP:
 				this.flagC = ((this.regA & 0b10000000) != 0)
 				this.regA = (this.regA << 1) & 0xff
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case LSR_IMP:
+			case opcode.LSR_IMP:
 				this.flagC = ((this.regA & 1) != 0)
 				this.regA = (this.regA >> 1) & 0xff
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
 				
-			case ROL_IMP:
+			case opcode.ROL_IMP:
 			{
 				const val = (this.regA << 1) | (this.flagC ? 1 : 0)
 				this.flagC = (val > 0xff)
@@ -951,7 +840,7 @@ export class CPU
 				this.setFlagNegative(this.regA)
 				break
 			}
-			case ROR_IMP:
+			case opcode.ROR_IMP:
 			{
 				const val = this.regA | (this.flagC ? 0x100 : 0)
 				this.flagC = ((val & 1) != 0)
@@ -971,45 +860,45 @@ export class CPU
 	{
 		switch (this.opcode)
 		{
-			case LDA_IMM:
-			case LDA_ZER:
-			case LDA_ZRX:
-			case LDA_ABS:
-			case LDA_ABX:
-			case LDA_ABY:
-			case LDA_PTX:
-			case LDA_PTY:
+			case opcode.LDA_IMM:
+			case opcode.LDA_ZER:
+			case opcode.LDA_ZRX:
+			case opcode.LDA_ABS:
+			case opcode.LDA_ABX:
+			case opcode.LDA_ABY:
+			case opcode.LDA_PTX:
+			case opcode.LDA_PTY:
 				this.regA = this.internalData
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case LDX_IMM:
-			case LDX_ZER:
-			case LDX_ZRY:
-			case LDX_ABS:
-			case LDX_ABY:
+			case opcode.LDX_IMM:
+			case opcode.LDX_ZER:
+			case opcode.LDX_ZRY:
+			case opcode.LDX_ABS:
+			case opcode.LDX_ABY:
 				this.regX = this.internalData
 				this.setFlagZero(this.regX)
 				this.setFlagNegative(this.regX)
 				break
-			case LDY_IMM:
-			case LDY_ZER:
-			case LDY_ZRX:
-			case LDY_ABS:
-			case LDY_ABX:
+			case opcode.LDY_IMM:
+			case opcode.LDY_ZER:
+			case opcode.LDY_ZRX:
+			case opcode.LDY_ABS:
+			case opcode.LDY_ABX:
 				this.regY = this.internalData
 				this.setFlagZero(this.regY)
 				this.setFlagNegative(this.regY)
 				break
 				
-			case ADC_IMM:
-			case ADC_ZER:
-			case ADC_ZRX:
-			case ADC_ABS:
-			case ADC_ABX:
-			case ADC_ABY:
-			case ADC_PTX:
-			case ADC_PTY:
+			case opcode.ADC_IMM:
+			case opcode.ADC_ZER:
+			case opcode.ADC_ZRX:
+			case opcode.ADC_ABS:
+			case opcode.ADC_ABX:
+			case opcode.ADC_ABY:
+			case opcode.ADC_PTX:
+			case opcode.ADC_PTY:
 			{
 				const val = this.regA + this.internalData + (this.flagC ? 1 : 0)
 				this.setFlagZero(val & 0xff)
@@ -1019,99 +908,99 @@ export class CPU
 				this.regA = val & 0xff
 				break
 			}
-			case SBC_IMM:
-			case SBC_ZER:
-			case SBC_ZRX:
-			case SBC_ABS:
-			case SBC_ABX:
-			case SBC_ABY:
-			case SBC_PTX:
-			case SBC_PTY:
+			case opcode.SBC_IMM:
+			case opcode.SBC_ZER:
+			case opcode.SBC_ZRX:
+			case opcode.SBC_ABS:
+			case opcode.SBC_ABX:
+			case opcode.SBC_ABY:
+			case opcode.SBC_PTX:
+			case opcode.SBC_PTY:
 			{
 				const val = this.regA + 0x100 - this.internalData - (this.flagC ? 0 : 1)
 				this.setFlagZero(val & 0xff)
 				this.setFlagNegative(val & 0xff)
 				this.flagV = (((this.regA ^ this.internalData) & 0x80) != 0) && (((this.regA ^ val) & 0x80) != 0)
-				this.flagC = (val < 0x100)
+				this.flagC = (val > 0xff)
 				this.regA = val & 0xff
 				break
 			}
 			
-			case CMP_IMM:
-			case CMP_ZER:
-			case CMP_ZRX:
-			case CMP_ABS:
-			case CMP_ABX:
-			case CMP_ABY:
-			case CMP_PTX:
-			case CMP_PTY:
+			case opcode.CMP_IMM:
+			case opcode.CMP_ZER:
+			case opcode.CMP_ZRX:
+			case opcode.CMP_ABS:
+			case opcode.CMP_ABX:
+			case opcode.CMP_ABY:
+			case opcode.CMP_PTX:
+			case opcode.CMP_PTY:
 			{
-				const val = this.regA - this.internalData
+				const val = this.regA + 0x100 - this.internalData
 				this.setFlagZero(val & 0xff)
-				this.setFlagNegative((val + 0x100) & 0xff)
-				this.flagC = (val >= 0)
+				this.setFlagNegative(val & 0xff)
+				this.flagC = (val > 0xff)
 				break
 			}
-			case CPX_IMM:
-			case CPX_ZER:
-			case CPX_ABS:
+			case opcode.CPX_IMM:
+			case opcode.CPX_ZER:
+			case opcode.CPX_ABS:
 			{
-				const val = this.regX - this.internalData
+				const val = this.regX + 0x100 - this.internalData
 				this.setFlagZero(val & 0xff)
-				this.setFlagNegative((val + 0x100) & 0xff)
-				this.flagC = (val >= 0)
+				this.setFlagNegative(val & 0xff)
+				this.flagC = (val > 0xff)
 				break
 			}
-			case CPY_IMM:
-			case CPY_ZER:
-			case CPY_ABS:
+			case opcode.CPY_IMM:
+			case opcode.CPY_ZER:
+			case opcode.CPY_ABS:
 			{
-				const val = this.regY - this.internalData
+				const val = this.regY + 0x100 - this.internalData
 				this.setFlagZero(val & 0xff)
-				this.setFlagNegative((val + 0x100) & 0xff)
-				this.flagC = (val >= 0)
+				this.setFlagNegative(val & 0xff)
+				this.flagC = (val > 0xff)
 				break
 			}
 			
-			case AND_IMM:
-			case AND_ZER:
-			case AND_ZRX:
-			case AND_ABS:
-			case AND_ABX:
-			case AND_ABY:
-			case AND_PTX:
-			case AND_PTY:
+			case opcode.AND_IMM:
+			case opcode.AND_ZER:
+			case opcode.AND_ZRX:
+			case opcode.AND_ABS:
+			case opcode.AND_ABX:
+			case opcode.AND_ABY:
+			case opcode.AND_PTX:
+			case opcode.AND_PTY:
 				this.regA &= this.internalData
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case ORA_IMM:
-			case ORA_ZER:
-			case ORA_ZRX:
-			case ORA_ABS:
-			case ORA_ABX:
-			case ORA_ABY:
-			case ORA_PTX:
-			case ORA_PTY:
+			case opcode.ORA_IMM:
+			case opcode.ORA_ZER:
+			case opcode.ORA_ZRX:
+			case opcode.ORA_ABS:
+			case opcode.ORA_ABX:
+			case opcode.ORA_ABY:
+			case opcode.ORA_PTX:
+			case opcode.ORA_PTY:
 				this.regA |= this.internalData
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
-			case EOR_IMM:
-			case EOR_ZER:
-			case EOR_ZRX:
-			case EOR_ABS:
-			case EOR_ABX:
-			case EOR_ABY:
-			case EOR_PTX:
-			case EOR_PTY:
+			case opcode.EOR_IMM:
+			case opcode.EOR_ZER:
+			case opcode.EOR_ZRX:
+			case opcode.EOR_ABS:
+			case opcode.EOR_ABX:
+			case opcode.EOR_ABY:
+			case opcode.EOR_PTX:
+			case opcode.EOR_PTY:
 				this.regA ^= this.internalData
 				this.setFlagZero(this.regA)
 				this.setFlagNegative(this.regA)
 				break
 				
-			case BIT_ZER:
-			case BIT_ABS:
+			case opcode.BIT_ZER:
+			case opcode.BIT_ABS:
 				this.setFlagZero(this.regA & this.internalData)
 				this.setFlagNegative(this.internalData)
 				this.flagV = ((this.internalData & 0x40) != 0)
@@ -1127,29 +1016,29 @@ export class CPU
 	{
 		switch (this.opcode)
 		{
-			case ASL_ZER:
-			case ASL_ZRX:
-			case ASL_ABS:
-			case ASL_ABX:
+			case opcode.ASL_ZER:
+			case opcode.ASL_ZRX:
+			case opcode.ASL_ABS:
+			case opcode.ASL_ABX:
 				this.flagC = ((this.internalData & 0x80) != 0)
 				this.internalData = (this.internalData << 1) & 0xff
 				this.setFlagZero(this.internalData)
 				this.setFlagNegative(this.internalData)
 				break
-			case LSR_ZER:
-			case LSR_ZRX:
-			case LSR_ABS:
-			case LSR_ABX:
+			case opcode.LSR_ZER:
+			case opcode.LSR_ZRX:
+			case opcode.LSR_ABS:
+			case opcode.LSR_ABX:
 				this.flagC = ((this.internalData & 1) != 0)
 				this.internalData = (this.internalData >> 1) & 0xff
 				this.setFlagZero(this.internalData)
 				this.setFlagNegative(this.internalData)
 				break
 				
-			case ROL_ZER:
-			case ROL_ZRX:
-			case ROL_ABS:
-			case ROL_ABX:
+			case opcode.ROL_ZER:
+			case opcode.ROL_ZRX:
+			case opcode.ROL_ABS:
+			case opcode.ROL_ABX:
 			{
 				const val = (this.internalData << 1) | (this.flagC ? 1 : 0)
 				this.flagC = (val > 0xff)
@@ -1158,10 +1047,10 @@ export class CPU
 				this.setFlagNegative(this.internalData)
 				break
 			}
-			case ROR_ZER:
-			case ROR_ZRX:
-			case ROR_ABS:
-			case ROR_ABX:
+			case opcode.ROR_ZER:
+			case opcode.ROR_ZRX:
+			case opcode.ROR_ABS:
+			case opcode.ROR_ABX:
 			{
 				const val = this.internalData | (this.flagC ? 0x100 : 0)
 				this.flagC = ((val & 1) != 0)
@@ -1171,19 +1060,19 @@ export class CPU
 				break
 			}
 			
-			case INC_ZER:
-			case INC_ZRX:
-			case INC_ABS:
-			case INC_ABX:
+			case opcode.INC_ZER:
+			case opcode.INC_ZRX:
+			case opcode.INC_ABS:
+			case opcode.INC_ABX:
 				this.internalData = this.increment8Bit(this.internalData)
 				this.setFlagZero(this.internalData)
 				this.setFlagNegative(this.internalData)
 				break
 			
-			case DEC_ZER:
-			case DEC_ZRX:
-			case DEC_ABS:
-			case DEC_ABX:
+			case opcode.DEC_ZER:
+			case opcode.DEC_ZRX:
+			case opcode.DEC_ABS:
+			case opcode.DEC_ABX:
 				this.internalData = this.decrement8Bit(this.internalData)
 				this.setFlagZero(this.internalData)
 				this.setFlagNegative(this.internalData)
@@ -1199,23 +1088,23 @@ export class CPU
 	{
 		switch (this.opcode)
 		{
-			case STA_ZER:
-			case STA_ZRX:
-			case STA_ABS:
-			case STA_ABX:
-			case STA_ABY:
-			case STA_PTX:
-			case STA_PTY:
+			case opcode.STA_ZER:
+			case opcode.STA_ZRX:
+			case opcode.STA_ABS:
+			case opcode.STA_ABX:
+			case opcode.STA_ABY:
+			case opcode.STA_PTX:
+			case opcode.STA_PTY:
 				this.write(this.internalAddr, this.regA)
 				break
-			case STX_ZER:
-			case STX_ZRY:
-			case STX_ABS:
+			case opcode.STX_ZER:
+			case opcode.STX_ZRY:
+			case opcode.STX_ABS:
 				this.write(this.internalAddr, this.regX)
 				break
-			case STY_ZER:
-			case STY_ZRX:
-			case STY_ABS:
+			case opcode.STY_ZER:
+			case opcode.STY_ZRX:
+			case opcode.STY_ABS:
 				this.write(this.internalAddr, this.regY)
 				break
 				
@@ -1317,54 +1206,25 @@ export class CPU
 	}
 	
 	
-	calculateAddrForZeroPageIndexed(reg)
+	calculateEffectiveAddr(base, offset, withCarry)
 	{
-		this.internalAddr &= 0xff00
-		this.internalAddr |= (this.internalAddr + reg) & 0xff
-	}
-	
-	
-	calculateAddrForPTX()
-	{
-		// VERIFY: Data?
-		this.internalData = (this.internalAddr + this.regX) & 0xff
-	}
-	
-	
-	calculateAddrForPTY()
-	{
-		let addrWithoutCarry = this.internalAddr & 0xff00
-		addrWithoutCarry |= ((this.internalAddr + this.regY) & 0xff)
-		
-		this.internalAddr = (this.internalAddr + this.regY) & 0xffff
-		
-		return addrWithoutCarry
-	}
-	
-	
-	calculateAddrForAbsoluteIndexed(reg)
-	{
-		let addrWithoutCarry = this.internalAddr & 0xff00
-		addrWithoutCarry |= ((this.internalAddr + reg) & 0xff)
-		
-		this.internalAddr = (this.internalAddr + reg) & 0xffff
-		
-		return addrWithoutCarry
+		if (withCarry)
+			return (base + offset) & 0xffff
+		else
+			return (base & 0xff00) | ((base + offset) & 0xff)
 	}
 	
 	
 	pushStack(val)
 	{
-		this.write(0x100 + this.regS, this.regPC >> 8)
+		this.write(0x100 + this.regS, val)
 		this.decrementS()
 	}
 	
 	
-	popStack()
+	readStack()
 	{
-		let val = this.read(0x100 + this.regS)
-		this.incrementS()
-		return val
+		return this.read(0x100 + this.regS)
 	}
 	
 	

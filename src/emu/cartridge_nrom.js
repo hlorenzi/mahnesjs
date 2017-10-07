@@ -1,7 +1,12 @@
-export class CartridgeNROM
+import { Cartridge } from "./cartridge.js"
+
+
+export class CartridgeNROM extends Cartridge
 {
 	constructor(rom)
 	{
+		super(rom)
+		
 		this.prgROM = rom.prgROM
 		this.chrROM = rom.chrROM
 		
@@ -20,13 +25,21 @@ export class CartridgeNROM
 		{
 			this.chrRAM = null
 			this.ppuRead = this.ppuReadCHRROM
-			this.ppuWrite = this.ppuWriteCHRROM
 		}
 		
-		if (rom.mirroring)
-			this.ppuCIRAMMirror = this.ppuCIRAMMirrorHorz
-		else
-			this.ppuCIRAMMirror = this.ppuCIRAMMirrorVert
+		this.ppuCIRAMMirror = rom.mirroring ? this.ppuCIRAMMirrorHorz : this.ppuCIRAMMirrorVert
+	}
+	
+	
+	getBoardName()
+	{
+		return "NROM"
+	}
+	
+	
+	getINESMapperCode()
+	{
+		return 0
 	}
 	
 	
@@ -42,12 +55,6 @@ export class CartridgeNROM
 	}
 	
 	
-	cpuWrite(addr, val)
-	{
-		// Do nothing
-	}
-	
-	
 	ppuReadCHRROM(addr)
 	{
 		return this.chrROM[addr % 0x2000]
@@ -60,33 +67,9 @@ export class CartridgeNROM
 	}
 	
 	
-	ppuWriteCHRROM(addr, val)
-	{
-		// Do nothing
-	}
-	
-	
 	ppuWriteCHRRAM(addr, val)
 	{
 		if (addr < 0x2000)
 			this.chrRAM[addr] = val
-	}
-	
-	
-	ppuCIRAMEnable(addr)
-	{
-		return true
-	}
-	
-	
-	ppuCIRAMMirrorHorz(addr)
-	{
-		return (addr & (1 << 11)) != 0
-	}
-	
-	
-	ppuCIRAMMirrorVert(addr)
-	{
-		return (addr & (1 << 10)) != 0
 	}
 }

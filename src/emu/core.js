@@ -93,6 +93,7 @@ export class Core
 		{
 			const bit = this.controllerInput & 1
 			this.controllerInput >>= 1
+			this.controllerInput |= 0x80
 			return bit
 		}
 		
@@ -135,7 +136,7 @@ export class Core
 		{
 			if ((val & 1) != 0)
 			{
-				const input = this.getInput()
+				const input = this.getInput(0)
 				this.controllerStrobe = 0
 				this.controllerInput = (
 					(input[0] ? 0x01 : 0) |

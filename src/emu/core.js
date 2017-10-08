@@ -63,6 +63,7 @@ export class Core
 	
 	run()
 	{
+		this.cpu.driveIRQ(this.cartridge.driveIRQ())
 		this.cpu.run()
 		this.ppu.run()
 		this.ppu.run()

@@ -42,6 +42,12 @@ export class Cartridge
 	}
 	
 	
+	driveIRQ()
+	{
+		return false
+	}
+	
+	
 	ppuCIRAMEnable(addr)
 	{
 		return true

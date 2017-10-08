@@ -125,9 +125,9 @@ export class PPU
 		}
 		else
 		{
-            this.scrollT &= ~0xff;
-            this.scrollT |= val & 0xff;
-            this.scrollV = this.scrollT;
+			this.scrollT &= ~0xff;
+			this.scrollT |= val & 0xff;
+			this.scrollV = this.scrollT;
 		}
 		
 		this.addressNibble = !this.addressNibble;
@@ -397,7 +397,19 @@ export class PPU
 			
 			const scanlineIntoSpr = this.scanline - sprY
 			if (scanlineIntoSpr < 0 || scanlineIntoSpr >= sprHeight)
+			{
+				if (sprHeight == 16)
+				{
+					this.read(0x1000)
+					this.read(0x1000)
+				}
+				else
+				{
+					this.read(defaultPatternTable)
+					this.read(defaultPatternTable)
+				}
 				continue
+			}
 			
 			const paletteIndex = sprAttribute & 0x3
 			const priority = (sprAttribute & 0x20) != 0

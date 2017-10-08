@@ -1,6 +1,7 @@
 import { CartridgeNROM } from "./cartridge_nrom.js"
 import { CartridgeMMC1 } from "./cartridge_mmc1.js"
 import { CartridgeUxROM } from "./cartridge_uxrom.js"
+import { CartridgeMMC3 } from "./cartridge_mmc3.js"
 
 
 export class ROM
@@ -42,6 +43,7 @@ export class ROM
 			case 0: return new CartridgeNROM(this)
 			case 1: return new CartridgeMMC1(this)
 			case 2: return new CartridgeUxROM(this)
+			case 4: return new CartridgeMMC3(this)
 			default: throw "unsupported mapper: 0x" + this.mapperId.toString(16)
 		}
 	}

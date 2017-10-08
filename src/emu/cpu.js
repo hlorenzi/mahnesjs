@@ -44,6 +44,7 @@ export class CPU
 		this.signalNMI = false
 		this.acknowledgeNMI = false
 		this.signalIRQ = false
+		this.acknowledgeIRQ = false
 		
 		this.opcode = 0
 		this.opcodeStep = 0
@@ -159,9 +160,12 @@ export class CPU
 	}
 	
 	
-	driveIRQ()
+	driveIRQ(active)
 	{
-		this.signalIRQ = true
+		if (!this.signalIRQ && active)
+			this.acknowledgeIRQ = true
+		
+		this.signalIRQ = active
 	}
 	
 	
@@ -174,6 +178,9 @@ export class CPU
 		
 		else if (this.nmiRoutine)
 			this.runNMI()
+		
+		else if (this.irqRoutine)
+			this.runIRQ()
 		
 		else switch (this.opcodeStep)
 		{
@@ -248,12 +255,47 @@ export class CPU
 	}
 	
 	
+	runIRQ()
+	{
+		switch (this.opcodeStep)
+		{
+			case 1:
+				this.flagI = true
+				break
+			case 2:
+				this.pushStack(this.regPC >> 8)
+				break
+			case 3:
+				this.pushStack(this.regPC & 0xff)
+				break
+			case 4:
+				this.pushStack(this.packP())
+				break
+			case 6:
+				this.regPC = this.read(0xfffe)
+				break
+			case 7:
+				this.regPC |= this.read(0xffff) << 8
+				this.irqRoutine = false
+				this.endOpcode()
+				break
+		}
+	}
+	
+	
 	runOpcodeStep1()
 	{
 		if (this.acknowledgeNMI)
 		{
 			this.acknowledgeNMI = false
 			this.nmiRoutine = true
+		}
+		
+		else if (this.acknowledgeIRQ)
+		{
+			this.acknowledgeIRQ = false
+			if (!this.flagI)
+				this.irqRoutine = true
 		}
 		
 		else

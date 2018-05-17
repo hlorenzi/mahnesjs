@@ -1,5 +1,6 @@
 import { CPU } from "./cpu.js"
 import { PPU } from "./ppu.js"
+import { APU } from "./apu.js"
 import { ROM } from "./rom.js"
 
 
@@ -26,6 +27,8 @@ export class Core
 			(addr) => this.ppuRead(addr),
 			(addr, val) => this.ppuWrite(addr, val),
 			(active) => this.cpu.driveNMI(active))
+			
+		this.apu = new APU()
 		
 		this.ram = new Uint8Array(0x800)
 		this.vram = new Uint8Array(0x800)
@@ -36,10 +39,11 @@ export class Core
 	}
 	
 	
-	connect(outputFn, getInputFn)
+	connect(outputFn, getInputFn, audioCtx)
 	{
 		this.output = outputFn
 		this.getInput = getInputFn
+		this.apu.connect(audioCtx)
 	}
 
 
@@ -54,6 +58,7 @@ export class Core
 	{
 		this.cpu.reset()
 		this.ppu.reset()
+		this.apu.reset()
 		
 		this.ram = new Uint8Array(0x800)
 		this.vram = new Uint8Array(0x800)
@@ -69,6 +74,8 @@ export class Core
 		this.ppu.run()
 		this.ppu.run()
 		this.clock += 3
+		
+		this.apu.run()
 	}
 	
 	
@@ -124,6 +131,31 @@ export class Core
 			}
 		}
 		
+		else if (addr == 0x4000)
+			this.apu.writeRegPulse1DutyVolume(val)
+		else if (addr == 0x4001)
+			this.apu.writeRegPulse1Sweep(val)
+		else if (addr == 0x4002)
+			this.apu.writeRegPulse1TimerLow(val)
+		else if (addr == 0x4003)
+			this.apu.writeRegPulse1TimerHigh(val)
+		
+		else if (addr == 0x4004)
+			this.apu.writeRegPulse2DutyVolume(val)
+		else if (addr == 0x4005)
+			this.apu.writeRegPulse2Sweep(val)
+		else if (addr == 0x4006)
+			this.apu.writeRegPulse2TimerLow(val)
+		else if (addr == 0x4007)
+			this.apu.writeRegPulse2TimerHigh(val)
+		
+		else if (addr == 0x4008)
+			this.apu.writeRegTriangleLinearCounter(val)
+		else if (addr == 0x400a)
+			this.apu.writeRegTriangleTimerLow(val)
+		else if (addr == 0x400b)
+			this.apu.writeRegTriangleTimerHigh(val)
+		
 		else if (addr == 0x4014)
 		{
 			if (val != 0x40)
@@ -132,6 +164,9 @@ export class Core
 					this.ppu.oam[i] = this.ram[(val << 8) + i]
 			}
 		}
+		
+		else if (addr == 0x4015)
+			this.apu.writeRegSTATUS(val)
 		
 		else if (addr == 0x4016)
 		{
@@ -153,6 +188,9 @@ export class Core
 			else
 				this.controllerStrobe = 1
 		}
+		
+		else if (addr == 0x4017)
+			this.apu.writeRegFrameCounter(val)
 	}
 	
 	

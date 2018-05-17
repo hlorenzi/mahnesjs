@@ -4,11 +4,12 @@
 
 An HTML5/JavaScript NES emulator!
 
-Currently, there is only basic CPU and PPU emulation.
+Many hardware quirks are currently not emulated. Also,
+only the most common or basic memory mappers are currently supported.
 
 Input is as follows:
-- `A`: Spacebar
+- `A`: Spacebar, Z
 - `B`: X
-- `Start`: Enter
-- `Select`: Left Ctrl
-- `D-Pad`: Arrow Keys
+- `Start`: Enter, H
+- `Select`: Ctrl, Shift, G
+- `D-Pad`: Arrow Keys, WASD

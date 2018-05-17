@@ -221,7 +221,7 @@ export class PPU
 		this.driveNMI((this.regCTRL & 0x80) != 0 && (this.regSTATUS & 0x80) != 0)
 		
 		this.dot += 1
-		if (this.dot == 341)
+		if (this.dot == 341 || (this.dot == 340 && this.scanline == 261 && this.frame % 2 != 0))
 		{
 			this.dot = 0
 			this.scanline += 1
@@ -266,7 +266,11 @@ export class PPU
 				}
 				
 				let bkgPixel = ((this.internalPatternL & (0x80 >> dotIntoTile)) != 0 ? 1 : 0) | ((this.internalPatternH & (0x80 >> dotIntoTile)) != 0 ? 2 : 0)
-				let bkgPixelColor = 0x3f & this.read(0x3f00 | (this.internalPalette << 2) | bkgPixel)
+				let bkgColorAddr = (this.internalPalette << 2) | bkgPixel
+				if (bkgPixel == 0)
+					bkgColorAddr = 0
+				
+				let bkgPixelColor = 0x3f & this.read(0x3f00 | bkgColorAddr)
 				
 				if ((this.regMASK & 1) != 0)
 					bkgPixelColor &= 0x30

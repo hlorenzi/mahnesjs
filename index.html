@@ -4,18 +4,21 @@
 
 	<head>
 		<title>MahNES.js</title>
-		
-		<script type="module" src="src/main.js"></script>
 	</head>
 
 	
-	<body onLoad="window.main()" style="text-align:center;">
+	<body style="text-align:center;">
 		<canvas id="canvasScreen" width="256" height="240"></canvas>
 		<br>
 		<input type="file" id="inputFile" accept=".nes"></input>
 		<br>
 		<br>
 		<button id="buttonDebug">Debug</button>
+		
+		<script type="module">
+			import { main } from "./src/main.js"
+			main()
+		</script>
 	</body>
 
 </html>

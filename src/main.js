@@ -2,7 +2,8 @@ import { Core } from "./emu/core.js"
 import { Disassembler } from "./emu/cpu_dis.js"
 
 
-let interval = null
+let currentAnimationFrameStop = { stop: false }
+let audioCtx = null
 let keyA = false
 let keyB = false
 let keySelect = false
@@ -13,7 +14,7 @@ let keyLeft = false
 let keyRight = false
 
 
-window.main = function()
+export function main()
 {
 	window.onkeydown = (ev) => handleKey(ev, true)
 	window.onkeyup = (ev) => handleKey(ev, false)
@@ -41,15 +42,56 @@ function handleKey(ev, down)
 {
 	switch (ev.key)
 	{
-		case " ": keyA = down; break
-		case "X": case "x": keyB = down; break
-		case "Ctrl": keySelect = down; break
-		case "Enter": keyStart = down; break
-		case "ArrowUp": keyUp = down; break
-		case "ArrowDown": keyDown = down; break
-		case "ArrowLeft": keyLeft = down; break
-		case "ArrowRight": keyRight = down; break
-		default: return
+		case " ":
+		case "Z":
+		case "z":
+			keyA = down
+			break
+			
+		case "X":
+		case "x":
+			keyB = down
+			break
+			
+		case "Control":
+		case "Shift":
+		case "G":
+		case "g":
+			keySelect = down
+			break
+			
+		case "Enter":
+		case "H":
+		case "h":
+			keyStart = down
+			break
+			
+		case "ArrowUp":
+		case "W":
+		case "w":
+			keyUp = down
+			break
+			
+		case "ArrowDown":
+		case "S":
+		case "s":
+			keyDown = down
+			break
+			
+		case "ArrowLeft":
+		case "A":
+		case "a":
+			keyLeft = down
+			break
+			
+		case "ArrowRight":
+		case "D":
+		case "d":
+			keyRight = down
+			break
+			
+		default:
+			return
 	}
 	
 	ev.preventDefault()
@@ -58,31 +100,31 @@ function handleKey(ev, down)
 
 function loadINES(buffer)
 {
-	if (interval != null)
-	{
-		window.clearInterval(interval)
-		interval = null
-	}
-	
 	let emu = new Core()
-	emu.loadINES(new Uint8Array(buffer))
+	
+	try { emu.loadINES(new Uint8Array(buffer)) }
+	catch (e) { alert(e); return }
+	
 	emu.reset()
+	
+	if (audioCtx != null)
+		audioCtx.close()
+	
+	audioCtx = new AudioContext()
 	
 	let canvas = document.getElementById("canvasScreen")
 	let ctx = canvas.getContext("2d")
 	let ctxData = ctx.createImageData(256, 240)
 	emu.connect(
 		(scanline, dot, color, mask) => output(emu, ctx, ctxData, scanline, dot, color, mask),
-		(i) => [keyA, keyB, keySelect, keyStart, keyUp, keyDown, keyLeft, keyRight])
+		(i) => [keyA, keyB, keySelect, keyStart, keyUp, keyDown, keyLeft, keyRight],
+		audioCtx)
 	
 	console.log(emu)
 	
-	interval = window.setInterval(() =>
-	{
-		for (let i = 0; i < 28000; i++)
-			emu.run()
-		
-	}, 1000 / 60)
+	currentAnimationFrameStop.stop = true
+	currentAnimationFrameStop = { stop: false }
+	window.requestAnimationFrame(() => runFrame(emu, currentAnimationFrameStop))
 	
 	emu.cpu.hookExecuteInstruction = (addr, byte1, byte2, byte3) =>
 	{
@@ -133,6 +175,16 @@ function loadINES(buffer)
 		}
 		console.log(s)
 	}
+}
+
+
+function runFrame(emu, animationFrameStop)
+{
+	for (let i = 0; i < 29780; i++)
+		emu.run()
+	
+	if (!animationFrameStop.stop)
+		window.requestAnimationFrame(() => runFrame(emu, animationFrameStop))
 }
 
 

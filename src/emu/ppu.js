@@ -210,7 +210,7 @@ export class PPU
 			
 			else if (this.dot >= 280 && this.dot < 305)
 			{
-				if (this.regMASK & 0x18)
+				if ((this.regMASK & 0x18) != 0)
 				{
 					this.scrollV &= ~0x7be0
 					this.scrollV |= this.scrollT & 0x7be0

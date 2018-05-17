@@ -39,11 +39,11 @@ window.main = function()
 
 function handleKey(ev, down)
 {
-	switch (ev.code)
+	switch (ev.key)
 	{
-		case "Space": keyA = down; break
-		case "KeyX": keyB = down; break
-		case "ControlLeft": keySelect = down; break
+		case " ": keyA = down; break
+		case "X": case "x": keyB = down; break
+		case "Ctrl": keySelect = down; break
 		case "Enter": keyStart = down; break
 		case "ArrowUp": keyUp = down; break
 		case "ArrowDown": keyDown = down; break

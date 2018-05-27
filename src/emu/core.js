@@ -156,6 +156,13 @@ export class Core
 		else if (addr == 0x400b)
 			this.apu.writeRegTriangleTimerHigh(val)
 		
+		else if (addr == 0x400c)
+			this.apu.writeRegNoiseVolume(val)
+		else if (addr == 0x400e)
+			this.apu.writeRegNoiseTimer(val)
+		else if (addr == 0x400f)
+			this.apu.writeRegNoiseLengthCounter(val)
+		
 		else if (addr == 0x4014)
 		{
 			if (val != 0x40)

@@ -24,6 +24,10 @@ export class APU
 		this.regTriangleTimerLow = 0
 		this.regTriangleTimerHigh = 0
 		
+		this.regNoiseVolume = 0
+		this.regNoiseTimer = 0
+		this.regNoiseLengthCounter = 0
+		
 		this.pulse1Period = 0
 		this.pulse1LengthCounter = 0
 		this.pulse1EnvelopeDivider = 0
@@ -45,10 +49,21 @@ export class APU
 		this.triangleLinearCounter = 0
 		this.triangleLinearCounterReload = false
 		
+		this.noisePeriod = 4
+		this.noiseLengthCounter = 0
+		this.noiseEnvelopeDivider = 0
+		this.noiseEnvelopeReload = false
+		this.noiseEnvelopeDecayLevel = 0
+		
 		this.lengthCounterTable =
 		[
 			10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
 			12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+		]
+		
+		this.noisePeriodTable =
+		[
+			4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
 		]
 		
 		this.frameCounterDivider = 0
@@ -67,6 +82,11 @@ export class APU
 		this.audioTriangleWave = null
 		this.audioTriangleGain = null
 		
+		this.audioNoiseMode0Wave = null
+		this.audioNoiseMode1Wave = null
+		this.audioNoiseMode0Gain = null
+		this.audioNoiseMode1Gain = null
+		
 		this.audioPulse1LastEnabled = false
 		this.audioPulse1LastFreq = 0
 		this.audioPulse1LastVolume = 0
@@ -81,7 +101,13 @@ export class APU
 		this.audioTriangleLastFreq = 0
 		this.audioTriangleLastVolume = 0
 		
+		this.audioNoiseLastEnabled = false
+		this.audioNoiseLastFreq = 0
+		this.audioNoiseLastMode = 0
+		this.audioNoiseLastVolume = 0
+		
 		this.audioPulseWaveforms = null
+		this.audioNoiseWaveforms = null
 	}
 	
 	
@@ -108,6 +134,28 @@ export class APU
 			}
 			
 			this.audioPulseWaveforms.push(this.audioCtx.createPeriodicWave(realParts, imagParts))
+		}
+		
+		this.audioNoiseWaveforms = []
+		const noiseSampleRate = 29780
+		const noiseFeedbackBitIndex = [1, 6]
+		const noiseLength = [32767, 93]
+		for (let i = 0; i < 2; i++)
+		{
+			let buffer = this.audioCtx.createBuffer(1, noiseLength[i], noiseSampleRate)
+			let bufferChannel = buffer.getChannelData(0)
+			
+			let shiftRegister = 1
+			
+			for (let j = 0; j < noiseLength[i]; j++)
+			{
+				bufferChannel[j] = ((shiftRegister & 1) != 0) ? 1 : -1
+				
+				let feedback = (shiftRegister & 1) ^ ((shiftRegister >> noiseFeedbackBitIndex[i]) & 1)
+				shiftRegister = (shiftRegister >> 1) | (feedback << 14)
+			}
+			
+			this.audioNoiseWaveforms.push(buffer)
 		}
 		
 		this.audioPulse1Wave = this.audioCtx.createOscillator()
@@ -143,6 +191,29 @@ export class APU
 		this.audioTriangleWave.connect(this.audioTriangleGain)
 		this.audioTriangleGain.connect(this.audioCtx.destination)
 		
+		this.audioNoiseMode0Wave = this.audioCtx.createBufferSource()
+		this.audioNoiseMode0Wave.buffer = this.audioNoiseWaveforms[0]
+		this.audioNoiseMode0Wave.loop = true
+		this.audioNoiseMode0Wave.playbackRate.setValueAtTime(1, this.audioCtx.currentTime)
+		this.audioNoiseMode0Wave.start()
+		
+		this.audioNoiseMode1Wave = this.audioCtx.createBufferSource()
+		this.audioNoiseMode1Wave.buffer = this.audioNoiseWaveforms[1]
+		this.audioNoiseMode1Wave.loop = true
+		this.audioNoiseMode1Wave.playbackRate.setValueAtTime(1, this.audioCtx.currentTime)
+		this.audioNoiseMode1Wave.start()
+		
+		this.audioNoiseMode0Gain = this.audioCtx.createGain()
+		this.audioNoiseMode0Gain.gain.setValueAtTime(0, this.audioCtx.currentTime)
+		
+		this.audioNoiseMode1Gain = this.audioCtx.createGain()
+		this.audioNoiseMode1Gain.gain.setValueAtTime(0, this.audioCtx.currentTime)
+		
+		this.audioNoiseMode0Wave.connect(this.audioNoiseMode0Gain)
+		this.audioNoiseMode1Wave.connect(this.audioNoiseMode1Gain)
+		this.audioNoiseMode0Gain.connect(this.audioCtx.destination)
+		this.audioNoiseMode1Gain.connect(this.audioCtx.destination)
+		
 		this.audioPulse1LastEnabled = false
 		this.audioPulse1LastFreq = 0
 		this.audioPulse1LastVolume = 0
@@ -156,6 +227,11 @@ export class APU
 		this.audioTriangleLastEnabled = false
 		this.audioTriangleLastFreq = 0
 		this.audioTriangleLastVolume = 0
+		
+		this.audioNoiseLastEnabled = false
+		this.audioNoiseLastFreq = 0
+		this.audioNoiseLastMode = 0
+		this.audioNoiseLastVolume = 0
 	}
 	
 	
@@ -316,6 +392,31 @@ export class APU
 	}
 	
 	
+	writeRegNoiseVolume(val)
+	{
+		this.regNoiseVolume = val
+	}
+	
+	
+	writeRegNoiseTimer(val)
+	{
+		this.regNoiseTimer = val
+		
+		this.noisePeriod = this.noisePeriodTable[val & 0xf]
+	}
+	
+	
+	writeRegNoiseLengthCounter(val)
+	{
+		this.regNoiseLengthCounter = val
+		
+		this.noiseEnvelopeReload = true
+		
+		if ((this.regSTATUS & 0x4) != 0)
+			this.noiseLengthCounter = this.lengthCounterTable[(val >> 3) & 0b11111]
+	}
+	
+	
 	run()
 	{
 		this.clock += 1
@@ -397,6 +498,26 @@ export class APU
 					this.pulse2EnvelopeDivider = this.regPulse2DutyVolume & 0b1111
 				}
 				
+				if (!this.noiseEnvelopeReload)
+				{
+					if (this.noiseEnvelopeDivider == 0)
+					{
+						this.noiseEnvelopeDivider = this.regNoiseVolume & 0b1111
+						if (this.noiseEnvelopeDecayLevel > 0)
+							this.noiseEnvelopeDecayLevel -= 1
+						else if ((this.regPulse2DutyVolume & 0x20) != 0)
+							this.noiseEnvelopeDecayLevel = 15
+					}
+					else
+						this.noiseEnvelopeDivider -= 1
+				}
+				else
+				{
+					this.noiseEnvelopeReload = false
+					this.noiseEnvelopeDecayLevel = 15
+					this.noiseEnvelopeDivider = this.regNoiseVolume & 0b1111
+				}
+				
 				if (this.triangleLinearCounterReload)
 					this.triangleLinearCounter = this.regTriangleLinearCounter & 0x7f
 				else if (this.triangleLinearCounter > 0)
@@ -416,6 +537,9 @@ export class APU
 				
 				if (this.triangleLengthCounter > 0 && (this.regTriangleLinearCounter & 0x80) == 0)
 					this.triangleLengthCounter -= 1
+				
+				if (this.noiseLengthCounter > 0 && (this.regNoiseVolume & 0x20) == 0)
+					this.noiseLengthCounter -= 1
 				
 				if (this.pulse1SweepDivider == 0 && pulse1SweepTargetPeriodInRange && (this.regPulse1Sweep & 0x80) != 0)
 					this.pulse1Period = pulse1SweepTargetPeriod
@@ -461,6 +585,7 @@ export class APU
 		
 		if (this.audioPulse1LastDutyCycle != pulse1DutyCycle)
 		{
+			// TODO: Split different duty cycle waveforms into different audio sources
 			this.audioPulse1LastDutyCycle = pulse1DutyCycle
 			this.audioPulse1Wave.setPeriodicWave(this.audioPulseWaveforms[pulse1DutyCycle])
 		}
@@ -489,6 +614,7 @@ export class APU
 		
 		if (this.audioPulse2LastDutyCycle != pulse2DutyCycle)
 		{
+			// TODO: Split different duty cycle waveforms into different audio sources
 			this.audioPulse2LastDutyCycle = pulse2DutyCycle
 			this.audioPulse2Wave.setPeriodicWave(this.audioPulseWaveforms[pulse2DutyCycle])
 		}
@@ -518,6 +644,29 @@ export class APU
 			this.audioTriangleLastEnabled = triangleEnabled
 			this.audioTriangleLastVolume = triangleVolume
 			this.audioTriangleGain.gain.setValueAtTime(triangleEnabled ? this.GLOBAL_VOLUME * triangleVolume : 0, audioCtxTime)
+		}
+		
+		const noiseVolume = ((this.regNoiseVolume & 0x10) == 0 ? this.noiseEnvelopeDecayLevel : (this.regNoiseVolume & 0b1111)) / 15 * 0.25
+		const noiseMode = (this.regNoiseTimer & 0x80) != 0 ? 1 : 0
+		const noiseEnabled =
+			(this.noiseLengthCounter > 0) &&
+			((this.regSTATUS & 0x8) != 0)
+		
+		if (this.audioNoiseLastPeriod != this.noisePeriod)
+		{
+			//console.log(audioCtxTime.toFixed(5) + " : noise period = " + this.noisePeriod + ", mode = " + noiseMode)
+			this.audioNoiseLastPeriod = this.noisePeriod
+			this.audioNoiseMode0Wave.playbackRate.setValueAtTime(256 / this.noisePeriod, audioCtxTime)
+			this.audioNoiseMode1Wave.playbackRate.setValueAtTime(256 / this.noisePeriod, audioCtxTime)
+		}
+		
+		if (this.audioNoiseLastEnabled != noiseEnabled || this.audioNoiseLastVolume != noiseVolume || this.audioNoiseLastMode != noiseMode)
+		{
+			this.audioNoiseLastEnabled = noiseEnabled
+			this.audioNoiseLastVolume = noiseVolume
+			this.audioNoiseLastMode = noiseMode
+			this.audioNoiseMode0Gain.gain.setValueAtTime(noiseEnabled && noiseMode == 0 ? this.GLOBAL_VOLUME * noiseVolume : 0, audioCtxTime)
+			this.audioNoiseMode1Gain.gain.setValueAtTime(noiseEnabled && noiseMode == 1 ? this.GLOBAL_VOLUME * noiseVolume : 0, audioCtxTime)
 		}
 		
 		if (false && this.clock % (CLOCKS_PER_SECOND / 60) == 0)

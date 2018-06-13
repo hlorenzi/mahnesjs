@@ -1,5 +1,6 @@
 import { Core } from "./emu/core.js"
 import { Disassembler } from "./emu/cpu_dis.js"
+import { CPU } from "./emu/cpu.js"
 
 
 let currentAnimationFrameStop = { stop: false }
@@ -16,6 +17,11 @@ let keyRight = false
 
 export function main()
 {
+	{
+		let cpu = new CPU()
+		cpu.makeTable()
+	}
+	
 	window.onkeydown = (ev) => handleKey(ev, true)
 	window.onkeyup = (ev) => handleKey(ev, false)
 	

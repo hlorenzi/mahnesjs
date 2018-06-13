@@ -143,25 +143,25 @@ export class Disassembler
 			case opcode.DEC_ABS: return instrABS("dec", byte2, byte3)
 			case opcode.DEC_ABX: return instrABX("dec", byte2, byte3)
 
-			case opcode.ASL_IMP: return instrIMP("asl a", byte2, byte3)
+			case opcode.ASL_IMP: return instrIMP("asl", byte2, byte3)
 			case opcode.ASL_ZER: return instrZER("asl", byte2, byte3)
 			case opcode.ASL_ZRX: return instrZRX("asl", byte2, byte3)
 			case opcode.ASL_ABS: return instrABS("asl", byte2, byte3)
 			case opcode.ASL_ABX: return instrABX("asl", byte2, byte3)
 
-			case opcode.LSR_IMP: return instrIMP("lsr a", byte2, byte3)
+			case opcode.LSR_IMP: return instrIMP("lsr", byte2, byte3)
 			case opcode.LSR_ZER: return instrZER("lsr", byte2, byte3)
 			case opcode.LSR_ZRX: return instrZRX("lsr", byte2, byte3)
 			case opcode.LSR_ABS: return instrABS("lsr", byte2, byte3)
 			case opcode.LSR_ABX: return instrABX("lsr", byte2, byte3)
 
-			case opcode.ROL_IMP: return instrIMP("rol a", byte2, byte3)
+			case opcode.ROL_IMP: return instrIMP("rol", byte2, byte3)
 			case opcode.ROL_ZER: return instrZER("rol", byte2, byte3)
 			case opcode.ROL_ZRX: return instrZRX("rol", byte2, byte3)
 			case opcode.ROL_ABS: return instrABS("rol", byte2, byte3)
 			case opcode.ROL_ABX: return instrABX("rol", byte2, byte3)
 
-			case opcode.ROR_IMP: return instrIMP("ror a", byte2, byte3)
+			case opcode.ROR_IMP: return instrIMP("ror", byte2, byte3)
 			case opcode.ROR_ZER: return instrZER("ror", byte2, byte3)
 			case opcode.ROR_ZRX: return instrZRX("ror", byte2, byte3)
 			case opcode.ROR_ABS: return instrABS("ror", byte2, byte3)
@@ -193,6 +193,8 @@ export class Disassembler
 			case opcode.NOP_6  : return instrIMP("nop", byte2, byte3)
 			case opcode.NOP_7  : return instrIMP("nop", byte2, byte3)
 			case opcode.NOP_8  : return instrIMP("nop", byte2, byte3)
+			
+			default: return "??? ---"
 		}
 	}
 }
@@ -200,67 +202,67 @@ export class Disassembler
 
 function instrIMP(mnemonic, byte2, byte3)
 {
-	return mnemonic
+	return mnemonic + " ---"
 }
 
 
 function instrIMM(mnemonic, byte2, byte3)
 {
-	return mnemonic + " #$" + byte2.toString(16)
+	return mnemonic + " imm"
 }
 
 
 function instrZER(mnemonic, byte2, byte3)
 {
-	return mnemonic + " <$" + byte2.toString(16)
+	return mnemonic + " zer"
 }
 
 
 function instrZRX(mnemonic, byte2, byte3)
 {
-	return mnemonic + " <$" + byte2.toString(16) + ", x"
+	return mnemonic + " zrx"
 }
 
 
 function instrZRY(mnemonic, byte2, byte3)
 {
-	return mnemonic + " <$" + byte2.toString(16) + ", y"
+	return mnemonic + " zry"
 }
 
 
 function instrABS(mnemonic, byte2, byte3)
 {
-	return mnemonic + " $" + (byte2 | (byte3 << 8)).toString(16)
+	return mnemonic + " abs"
 }
 
 
 function instrABX(mnemonic, byte2, byte3)
 {
-	return mnemonic + " $" + (byte2 | (byte3 << 8)).toString(16) + ", x"
+	return mnemonic + " abx"
 }
 
 
 function instrABY(mnemonic, byte2, byte3)
 {
-	return mnemonic + " $" + (byte2 | (byte3 << 8)).toString(16) + ", y"
+	return mnemonic + " aby"
 }
 
 
 function instrIND(mnemonic, byte2, byte3)
 {
-	return mnemonic + " ($" + (byte2 | (byte3 << 8)).toString(16) + ")"
+	return mnemonic + " ind"
 }
 
 
 function instrPTX(mnemonic, byte2, byte3)
 {
-	return mnemonic + " (<$" + byte2.toString(16) + ", x)"
+	return mnemonic + " ptx"
 }
 
 
 function instrPTY(mnemonic, byte2, byte3)
 {
-	return mnemonic + " (<$" + byte2.toString(16) + "), y"
+	return mnemonic + " pty"
 }
 
 
@@ -269,5 +271,5 @@ function instrREL(mnemonic, byte2, byte3, addr)
 	const signedOffset = ((byte2 & 0x80) == 0) ? byte2 : -(256 - byte2)
 	const finalAddr = (addr + 0x10000 + signedOffset) & 0xffff
 	
-	return mnemonic + " $" + finalAddr.toString(16)
+	return mnemonic + " rel"
 }

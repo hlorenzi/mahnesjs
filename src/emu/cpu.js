@@ -1,4 +1,5 @@
 import * as opcode from "./cpu_opcodes.js"
+import { Disassembler } from "./cpu_dis.js"
 
 // Processor status flags
 const FLAG_C = 0b00000001 // Carry
@@ -30,6 +31,8 @@ const READ = 0 // Read
 const MDFY = 1 // Read-modify-write
 const WRIT = 2 // Write
 const NONE = 3 // Other
+
+let str = ""
 
 
 export class CPU
@@ -169,20 +172,50 @@ export class CPU
 	}
 	
 	
+	makeTable()
+	{
+		str = ""
+		
+		for (let i = 0; i < 0x100; i++)
+		{
+			str += "/* 0x" + i.toString(16) + " " + Disassembler.disassembleInstruction(0, i, 0, 0) + " */ ["
+			
+			this.opcodeStep = 0
+			this.opcode = i
+			
+			let lastStep = 1
+			try
+			{
+				if (!Disassembler.disassembleInstruction(0, i, 0, 0).includes("???"))
+				{
+					this.run()
+					while (this.opcodeStep != 0)
+					{
+						lastStep = Math.max(lastStep, this.opcodeStep + 1)
+						this.run()
+					}
+				}
+			}
+			catch (e) { }
+			
+			while (lastStep < 8)
+			{
+				str += "::x,        "
+				lastStep++
+			}
+			
+			str += "],\n"
+		}
+		
+		console.log(str)
+	}
+	
+	
 	run()
 	{
 		this.opcodeStep += 1
 		
-		if (this.resetRoutine)
-			this.runReset()
-		
-		else if (this.nmiRoutine)
-			this.runNMI()
-		
-		else if (this.irqRoutine)
-			this.runIRQ()
-		
-		else switch (this.opcodeStep)
+		switch (this.opcodeStep)
 		{
 			case 1:
 				this.runOpcodeStep1()
@@ -285,26 +318,8 @@ export class CPU
 	
 	runOpcodeStep1()
 	{
-		if (this.acknowledgeNMI)
 		{
-			this.acknowledgeNMI = false
-			this.nmiRoutine = true
-		}
-		
-		else if (this.acknowledgeIRQ)
-		{
-			this.acknowledgeIRQ = false
-			if (!this.flagI)
-				this.irqRoutine = true
-		}
-		
-		else
-		{
-			this.opcode = this.read(this.regPC)
-			
-			const pcPlus1 = this.increment16Bit(this.regPC)
-			const pcPlus2 = this.increment16Bit(pcPlus1)
-			this.hookExecuteInstruction(this.regPC, this.opcode, this.read(pcPlus1), this.read(pcPlus2))
+			//this.opcode = this.read(this.regPC)
 			
 			this.incrementPC()
 		}
@@ -316,17 +331,20 @@ export class CPU
 		switch (this.opcodeAddressModes[this.opcode])
 		{
 			case IMM:
+				str += "::exec_imm, "
 				this.internalData = this.read(this.regPC)
 				this.incrementPC()
 				this.runOperationRead()
 				this.endOpcode()
 				break
 			case IMP:
+				str += "::exec_imp, "
 				this.internalData = this.read(this.regPC)
 				this.runOperationImplied()
 				this.endOpcode()
 				break
 			case REL:
+				str += "::read_data,"
 				this.internalData = this.read(this.regPC)
 				this.incrementPC()
 				break
@@ -339,13 +357,20 @@ export class CPU
 			case PTX:
 			case PTY:
 			case IND:
+				str += "::read_addr,"
 				this.internalAddr = this.read(this.regPC)
 				this.incrementPC()
 				break
 			case STK:
 				this.internalData = this.read(this.regPC)
 				if (this.opcode == opcode.BRK || this.opcode == opcode.JSR)
+				{
+					str += "::read_data,"
 					this.incrementPC()
+				}
+				else
+					str += "::read_dat2,"
+				
 				break
 			default:
 				this.throwUnhandledStep()
@@ -361,14 +386,17 @@ export class CPU
 				switch (this.opcodeFunctionModes[this.opcode])
 				{
 					case READ:
+						str += "::exec_rd1, "
 						this.internalData = this.read(this.internalAddr)
 						this.runOperationRead()
 						this.endOpcode()
 						break
 					case MDFY:
+						str += "::exec_mdf1,"
 						this.internalData = this.read(this.internalAddr)
 						break
 					case WRIT:
+						str += "::exec_wrt2, "
 						this.internalData = this.read(this.internalAddr)
 						this.runOperationWrite()
 						this.endOpcode()
@@ -378,10 +406,12 @@ export class CPU
 				}
 				break
 			case ZRX:
+				str += "::exec_zrx3,"
 				this.read(this.internalAddr) // Dummy read
 				this.internalAddr = this.calculateEffectiveAddr(this.internalAddr, this.regX, false)
 				break
 			case ZRY:
+				str += "::exec_zry3,"
 				this.read(this.internalAddr) // Dummy read
 				this.internalAddr = this.calculateEffectiveAddr(this.internalAddr, this.regY, false)
 				break
@@ -393,20 +423,27 @@ export class CPU
 				this.incrementPC()
 				if (this.opcode == opcode.JMP_ABS)
 				{
+					str += "::exec_jmp3,"
 					this.regPC = this.internalAddr
 					this.endOpcode()
 					return
 				}
+				else
+					str += "::exec_abs3,"
+				
 				break
 			case PTX:
+				str += "::exec_ptx3,"
 				this.read(this.internalAddr) // Dummy read
 				this.internalData = (this.internalAddr + this.regX) & 0xff
 				break
 			case PTY:
+				str += "::exec_pty3,"
 				this.internalData = this.read(this.internalAddr)
 				break
 			case REL:
 			{
+				str += "::exec_rel3,"
 				var branchTaken = false
 				switch (this.opcode)
 				{
@@ -421,9 +458,9 @@ export class CPU
 					default: this.throwUnhandledStep()
 				}
 				
-				if (!branchTaken)
-					this.endOpcodePrefetch()
-				else
+				//if (!branchTaken)
+				//	this.endOpcodePrefetch()
+				//else
 					this.read(this.regPC) // Dummy read
 				
 				break
@@ -432,23 +469,28 @@ export class CPU
 				switch (this.opcode)
 				{
 					case opcode.BRK:
+						str += "::push_brk3,"
 						this.pushStack(this.regPC >> 8)
 						break
 					case opcode.RTI:
 					case opcode.RTS:
 					case opcode.PLA:
 					case opcode.PLP:
+						str += "::incr_s,  "
 						this.incrementS()
 						break
 					case opcode.PHA:
+						str += "::push_a,  "
 						this.pushStack(this.regA)
 						this.endOpcode()
 						break
 					case opcode.PHP:
+						str += "::push_p,  "
 						this.pushStack(this.packP() | FLAG_B | FLAG_U)
 						this.endOpcode()
 						break
 					case opcode.JSR:
+						str += "::dummy,   "
 						break
 					default:
 						this.throwUnhandledStep()
@@ -465,6 +507,7 @@ export class CPU
 		switch (this.opcodeAddressModes[this.opcode])
 		{
 			case ZER:
+				str += "::exec_mdf2,"
 				this.write(this.internalAddr, this.internalData)
 				this.runOperationModify()
 				break
@@ -474,14 +517,17 @@ export class CPU
 				switch (this.opcodeFunctionModes[this.opcode])
 				{
 					case READ:
+						str += "::exec_rd1, "
 						this.internalData = this.read(this.internalAddr)
 						this.runOperationRead()
 						this.endOpcode()
 						break
 					case MDFY:
+						str += "::exec_mdf1,"
 						this.internalData = this.read(this.internalAddr)
 						break
 					case WRIT:
+						str += "::exec_wrt1,"
 						this.runOperationWrite()
 						this.endOpcode()
 						break
@@ -497,11 +543,14 @@ export class CPU
 				this.internalAddr = addrWithCarry
 				this.internalData = this.read(addrWithoutCarry) // Wrong read if address needs carry
 				
-				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				if (this.opcodeFunctionModes[this.opcode] == READ)
 				{
+					str += "::exec_abx4_r,"
 					this.runOperationRead()
-					this.endOpcode()
+					//this.endOpcode()
 				}
+				else
+					str += "::exec_abx4,"
 				break
 			}
 			case ABY:
@@ -512,29 +561,37 @@ export class CPU
 				this.internalAddr = addrWithCarry
 				this.internalData = this.read(addrWithoutCarry) // Wrong read if address needs carry
 				
-				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				if (this.opcodeFunctionModes[this.opcode] == READ)
 				{
+					str += "::exec_aby4_r,"
 					this.runOperationRead()
-					this.endOpcode()
+					//this.endOpcode()
 				}
+				else
+					str += "::exec_aby4,"
+				
 				break
 			}
 			case PTX:
+				str += "::exec_ptx4,"
 				this.internalAddr = this.read(this.internalData)
 				break
 			case PTY:
+				str += "::exec_pty4,"
 				this.internalAddr = this.read((this.internalAddr + 1) & 0xff) << 8
 				this.internalAddr |= this.internalData
 				break
 			case IND:
+				str += "::exec_ind4,"
 				this.internalData = this.read(this.internalAddr)
 				break
 			case REL:
+				str += "::exec_rel4,"
 				// Only taken branches reach this
 				let addrWithoutCarry = this.calculateAddrForBranch(this.regPC, this.internalData, false)
 				let addrWithCarry = this.calculateAddrForBranch(this.regPC, this.internalData, true)
 				
-				if (addrWithCarry == addrWithoutCarry)
+				if (false)//addrWithCarry == addrWithoutCarry)
 				{
 					this.regPC = addrWithCarry
 					this.endOpcodePrefetch()
@@ -547,27 +604,33 @@ export class CPU
 				switch (this.opcode)
 				{
 					case opcode.BRK:
+						str += "::push_brk4,"
 						this.pushStack(this.regPC & 0xff)
 						break
 					case opcode.RTI:
+						str += "::exec_rti4,"
 						this.unpackP(this.readStack())
 						this.incrementS()
 						break
 					case opcode.RTS:
+						str += "::exec_rts4,"
 						this.regPC = this.readStack()
 						this.incrementS()
 						break
 					case opcode.PLA:
+						str += "::exec_pla4,"
 						this.regA = this.readStack()
 						this.setFlagZero(this.regA)
 						this.setFlagNegative(this.regA)
 						this.endOpcode()
 						break
 					case opcode.PLP:
+						str += "::exec_plp4,"
 						this.unpackP(this.readStack())
 						this.endOpcode()
 						break
 					case opcode.JSR:
+						str += "::exec_jsr4,"
 						this.pushStack(this.regPC >> 8)
 						break
 					default:
@@ -585,12 +648,14 @@ export class CPU
 		switch (this.opcodeAddressModes[this.opcode])
 		{
 			case ZER:
+				str += "::exec_zer5,"
 				this.write(this.internalAddr, this.internalData)
 				this.endOpcode()
 				break
 			case ZRX:
 			case ZRY:
 			case ABS:
+				str += "::exec_abs5,"
 				this.write(this.internalAddr, this.internalData)
 				this.runOperationModify()
 				break
@@ -599,14 +664,17 @@ export class CPU
 				switch (this.opcodeFunctionModes[this.opcode])
 				{
 					case READ:
+						str += "::exec_rd1, "
 						this.internalData = this.read(this.internalAddr)
 						this.runOperationRead()
 						this.endOpcode()
 						break
 					case MDFY:
+						str += "::exec_mdf1,"
 						this.internalData = this.read(this.internalAddr)
 						break
 					case WRIT:
+						str += "::exec_wrt1,"
 						this.runOperationWrite()
 						this.endOpcode()
 						break
@@ -615,6 +683,7 @@ export class CPU
 				}
 				break
 			case PTX:
+				str += "::exec_ptx5,"
 				this.internalAddr |= this.read((this.internalData + 1) & 0xff) << 8
 				break
 			case PTY:
@@ -625,19 +694,24 @@ export class CPU
 				this.internalAddr = addrWithCarry
 				this.internalData = this.read(addrWithoutCarry)
 				
-				if (addrWithoutCarry == addrWithCarry && this.opcodeFunctionModes[this.opcode] == READ)
+				if (this.opcodeFunctionModes[this.opcode] == READ)
 				{
-					this.runOperationRead()
-					this.endOpcode()
+					str += "::exec_pty5_r,"
+					//this.runOperationRead()
+					//this.endOpcode()
 				}
+				else
+					str += "::exec_pty5,"
 				
 				break
 			}
 			case REL:
+				str += "::exec_rel5,"
 				this.regPC = this.calculateAddrForBranch(this.regPC, this.internalData, true)
 				this.endOpcodePrefetch()
 				break
 			case IND:
+				str += "::exec_ind5,"
 				this.regPC = this.internalData
 				this.regPC |= this.read((this.internalAddr & 0xff00) | ((this.internalAddr + 1) & 0xff)) << 8
 				this.endOpcode()
@@ -646,16 +720,20 @@ export class CPU
 				switch (this.opcode)
 				{
 					case opcode.BRK:
+						str += "::exec_brk5,"
 						this.pushStack(this.packP())
 						break
 					case opcode.RTI:
+						str += "::exec_rti5,"
 						this.regPC = this.readStack()
 						this.incrementS()
 						break
 					case opcode.RTS:
+						str += "::exec_rts5,"
 						this.regPC |= this.readStack() << 8
 						break
 					case opcode.JSR:
+						str += "::exec_jsr5,"
 						this.pushStack(this.regPC & 0xff)
 						break
 					default:
@@ -675,11 +753,13 @@ export class CPU
 			case ZRX:
 			case ZRY:
 			case ABS:
+				str += "::exec_abs6,"
 				this.write(this.internalAddr, this.internalData)
 				this.endOpcode()
 				break
 			case ABX:
 			case ABY:
+				str += "::exec_abx6,"
 				this.write(this.internalAddr, this.internalData)
 				this.runOperationModify()
 				break
@@ -688,14 +768,17 @@ export class CPU
 				switch (this.opcodeFunctionModes[this.opcode])
 				{
 					case READ:
+						str += "::exec_rd1,"
 						this.internalData = this.read(this.internalAddr)
 						this.runOperationRead()
 						this.endOpcode()
 						break
 					case MDFY:
+						str += "::exec_mdf1,"
 						this.internalData = this.read(this.internalAddr)
 						break
 					case WRIT:
+						str += "::exec_wrt1,"
 						this.runOperationWrite()
 						this.endOpcode()
 						break
@@ -707,17 +790,21 @@ export class CPU
 				switch (this.opcode)
 				{
 					case opcode.BRK:
+						str += "::exec_brk6,"
 						this.regPC = this.read(0xfffe)
 						break
 					case opcode.RTI:
+						str += "::exec_rti6,"
 						this.regPC |= this.readStack() << 8
 						this.endOpcode()
 						break
 					case opcode.RTS:
+						str += "::exec_rts6,"
 						this.incrementPC()
 						this.endOpcode()
 						break
 					case opcode.JSR:
+						str += "::exec_jsr6,"
 						this.regPC = this.internalData | (this.read(this.regPC) << 8)
 						this.endOpcode()
 						break
@@ -737,15 +824,18 @@ export class CPU
 		{
 			case ABX:
 			case ABY:
+				str += "::exec_abx7,"
 				this.write(this.internalAddr, this.internalData)
 				this.endOpcode()
 				break
 			case PTX:
 			case PTY:
+				str += "::exec_ptx7,"
 				this.write(this.internalAddr, this.internalData)
 				this.runOperationModify()
 				break
 			case STK:
+				str += "::exec_stk7,"
 				this.regPC |= this.read(0xffff) << 8
 				this.endOpcode()
 				break
@@ -761,6 +851,7 @@ export class CPU
 		{
 			case PTX:
 			case PTY:
+				str += "::exec_ptx8,"
 				this.write(this.internalAddr, this.internalData)
 				this.endOpcode()
 				break
@@ -1164,8 +1255,7 @@ export class CPU
 	
 	endOpcodePrefetch()
 	{
-		this.opcodeStep = 1
-		this.runOpcodeStep1()
+		this.opcodeStep = 0
 	}
 	
 	
@@ -1284,6 +1374,8 @@ export class CPU
 	
 	throwUnhandledStep()
 	{
+		str += "::trap,     "
+		this.opcodeStep = 0
 		throw "unhandled opcode " + this.opcode.toString(16) + " step " + this.opcodeStep
 	}
 }

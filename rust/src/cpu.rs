@@ -3,7 +3,7 @@ use cpu_opcodes;
 
 type CpuReadFn = Fn(u16) -> u8;
 type CpuWriteFn = Fn(u16, u8);
-type CpuExecuteInstrFn = Fn(u16, u8, u8, u8);
+type CpuExecuteInstrFn = Fn(&Cpu, u16, u8, u8, u8);
 
 
 const FLAG_C : u8 = 0b00000001; // Carry
@@ -18,25 +18,27 @@ const FLAG_N : u8 = 0b10000000; // Negative
 
 pub struct Cpu
 {
+	pub clocks: usize,
+	
 	signal_nmi: bool,
 	acknowledge_nmi: bool,
 	
 	signal_irq: bool,
 	acknowledge_irq: bool,
 	
-	opcode: u8,
-	opcode_step: u8,
+	pub opcode: u8,
+	pub opcode_step: u8,
 	
-	routine_reset: bool,
-	routine_nmi: bool,
-	routine_irq: bool,
+	pub routine_reset: bool,
+	pub routine_nmi: bool,
+	pub routine_irq: bool,
 	
-	reg_pc: u16,
-	reg_a: u8,
-	reg_x: u8,
-	reg_y: u8,
-	reg_s: u8,
-	reg_p: u8,
+	pub reg_pc: u16,
+	pub reg_a: u8,
+	pub reg_x: u8,
+	pub reg_y: u8,
+	pub reg_s: u8,
+	pub reg_p: u8,
 	
 	internal_addr: u16,
 	internal_data: u8
@@ -58,6 +60,8 @@ impl Cpu
 	{
 		Cpu
 		{
+			clocks: 0,
+			
 			signal_nmi: false,
 			acknowledge_nmi: false,
 			
@@ -86,6 +90,8 @@ impl Cpu
 	
 	pub fn reset(&mut self)
 	{
+		self.clocks = 0;
+		
 		self.opcode = 0;
 		self.opcode_step = 0;
 		
@@ -138,6 +144,8 @@ impl Cpu
 			
 		else
 			{ self.dispatch_opcode(hooks); }
+			
+		self.clocks += 1;
 	}
 	
 	
@@ -538,6 +546,14 @@ impl Cpu
 		else
 		{	
 			self.opcode = (hooks.read)(self.reg_pc);
+			
+			{
+				let reg_pc = self.reg_pc;
+				let next_byte1 = (hooks.read)(self.reg_pc.wrapping_add(1));
+				let next_byte2 = (hooks.read)(self.reg_pc.wrapping_add(2));
+				(hooks.execute_instr)(self, reg_pc, self.opcode, next_byte1, next_byte2);
+			}
+			
 			self.increment_pc();
 		}
 	}

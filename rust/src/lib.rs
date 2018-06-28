@@ -1,8 +1,13 @@
+mod core;
+mod cartridge;
 mod cpu;
 pub mod cpu_opcodes;
 pub mod cpu_dis;
 
 
+
+pub use core::Core;
+pub use cartridge::Cartridge;
 pub use cpu::Cpu;
 pub use cpu::CpuHooks;
 

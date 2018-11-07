@@ -5,15 +5,75 @@
 	<head>
 		<title>MahNES.js</title>
 	</head>
+	
+	
+	<style>
+		body
+		{
+			font-family: Verdana, sans-serif;
+		}
+		
+		#divMainLayout
+		{
+			display: grid;
+			grid-template-columns: 1fr;
+			grid-template-rows: auto auto auto;
+			grid-align: center;
+			justify-items: center;
+			align-items: center;
+			text-align: center;
+			grid-row-gap: 2em;
+		}
+		
+		#divInputLayout
+		{
+			display: grid;
+			grid-template-rows: auto auto;
+			grid-auto-flow: column;
+			grid-column-gap: 0.75em;
+			grid-row-gap: 0.4em;
+			justify-items: center;
+			align-items: end;
+		}
+		
+		kbd
+		{
+			padding-top: 0.2em;
+			padding-bottom: 0.2em;
+			padding-left: 0.5em;
+			padding-right: 0.5em;
+			border: 1px solid black;
+			border-radius: 0.2em;
+			box-shadow: 0 0.05em black;
+			background-color: #eee;
+		}
+	</style>
 
 	
-	<body style="text-align:center;">
-		<canvas id="canvasScreen" width="256" height="240"></canvas>
-		<br>
-		<input type="file" id="inputFile" accept=".nes"></input>
-		<br>
-		<br>
-		<button id="buttonDebug">Debug</button>
+	<body>
+		<div id="divMainLayout">
+			<div style="grid-row:1; grid-column:1;">
+				<canvas id="canvasScreen" width="256" height="240"></canvas>
+				<br>
+				<br>
+				<input type="file" id="inputFile" accept=".nes"></input>
+			</div>
+			
+				
+			<div style="grid-row:2; grid-column:1;">
+				<div id="divInputLayout">
+					<div><kbd>↑</kbd><br><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></div> <div>D-Pad</div>
+					<div><kbd>Ctrl</kbd></div>  <div>Select</div>
+					<div><kbd>Enter</kbd></div> <div>Start</div>
+					<div><kbd>X</kbd></div>     <div>B</div>
+					<div><kbd>Space</kbd></div> <div>A</div>
+				</div>
+			</div>
+			
+			<div style="grid-row:3; grid-column:1;">
+				<button id="buttonDebug">Debug (Check the Console)</button>
+			</div>
+		</div>
 		
 		<script type="module">
 			import { main } from "./src/main.js"

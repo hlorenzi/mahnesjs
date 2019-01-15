@@ -229,37 +229,37 @@ fn dis_instr_zry(mnemonic: &str, byte2: u8, _byte3: u8) -> String
 
 fn dis_instr_abs(mnemonic: &str, byte2: u8, byte3: u8) -> String
 {
-	format!("{} ${:02x}", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
+	format!("{} ${:04x}", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
 }
 
 
 fn dis_instr_abx(mnemonic: &str, byte2: u8, byte3: u8) -> String
 {
-	format!("{} ${:02x}, x", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
+	format!("{} ${:04x}, x", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
 }
 
 
 fn dis_instr_aby(mnemonic: &str, byte2: u8, byte3: u8) -> String
 {
-	format!("{} ${:02x}, y", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
+	format!("{} ${:04x}, y", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
 }
 
 
 fn dis_instr_ind(mnemonic: &str, byte2: u8, byte3: u8) -> String
 {
-	format!("{} (${:02x})", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
+	format!("{} (${:04x})", mnemonic, byte2 as u16 | ((byte3 as u16) << 8))
 }
 
 
 fn dis_instr_ptx(mnemonic: &str, byte2: u8, _byte3: u8) -> String
 {
-	format!("{} (<${:02x}, x)", mnemonic, byte2)
+	format!("{} (<$00{:02x}, x)", mnemonic, byte2)
 }
 
 
 fn dis_instr_pty(mnemonic: &str, byte2: u8, _byte3: u8) -> String
 {
-	format!("{} (<${:02x}), y", mnemonic, byte2)
+	format!("{} (<$00{:02x}), y", mnemonic, byte2)
 }
 
 

@@ -30,7 +30,12 @@ pub struct Ppu
 	internal_pattern_lo: u8,
 	internal_pattern_hi: u8,
 	internal_palette: u8,
-	internal_scanline_objs: [Option<ScanlineObj>; 8]
+	internal_scanline_objs: [Option<ScanlineObj>; 8],
+	
+	pub hook_read: Box<PpuReadFn>,
+	pub hook_write: Box<PpuWriteFn>,
+	pub hook_output_dot: Box<PpuOutputDotFn>,
+	pub hook_drive_nmi: Box<PpuDriveNmiFn>
 }
 
 
@@ -47,17 +52,6 @@ struct ScanlineObj
 	pattern_lo: u8,
 	pattern_hi: u8
 }
-
-
-pub struct PpuHooks<'a>
-{
-	pub read: &'a PpuReadFn,
-	pub write: &'a PpuWriteFn,
-	
-	pub output_dot: &'a PpuOutputDotFn,
-	pub drive_nmi: &'a PpuDriveNmiFn
-}
-
 
 
 impl Ppu
@@ -87,7 +81,12 @@ impl Ppu
 			internal_pattern_lo: 0,
 			internal_pattern_hi: 0,
 			internal_palette: 0,
-			internal_scanline_objs: [None; 8]
+			internal_scanline_objs: [None; 8],
+			
+			hook_read: Box::new(|_| panic!("unconnected hook")),
+			hook_write: Box::new(|_, _| panic!("unconnected hook")),
+			hook_output_dot: Box::new(|_, _, _, _| { }),
+			hook_drive_nmi: Box::new(|_| { })
 		}
 	}
 	
@@ -173,9 +172,9 @@ impl Ppu
 	}
 	
 	
-	pub fn write_reg_data(&mut self, hooks: &PpuHooks, val: u8)
+	pub fn write_reg_data(&mut self, val: u8)
 	{
-		(hooks.write)(self.scroll_v, val);
+		(self.hook_write)(self.scroll_v, val);
 		self.scroll_v += if (self.reg_ctrl & 0x04) == 0 { 1 } else { 32 };
 		self.scroll_v &= 0xffff;
 	}
@@ -205,21 +204,21 @@ impl Ppu
 	}
 	
 	
-	pub fn read_reg_data(&mut self, hooks: &PpuHooks) -> u8
+	pub fn read_reg_data(&mut self) -> u8
 	{
 		let mut val = self.internal_latch;
 		
 		if self.scroll_v >= 0x3f00 && self.scroll_v < 0x4000
 		{
-			self.internal_latch = (hooks.read)(self.scroll_v - 0x1000);
+			self.internal_latch = (self.hook_read)(self.scroll_v - 0x1000);
 			
-			val = (hooks.read)(self.scroll_v);
+			val = (self.hook_read)(self.scroll_v);
 			if (self.reg_mask & 1) != 0
 				{ val &= 0x30; }
 		}
 		else
 		{
-			self.internal_latch = (hooks.read)(self.scroll_v);
+			self.internal_latch = (self.hook_read)(self.scroll_v);
 		}
 		
 		self.scroll_v += if (self.reg_ctrl & 0x04) != 0 { 32 } else { 1 };
@@ -233,10 +232,10 @@ impl Ppu
 	}
 	
 	
-	pub fn run(&mut self, hooks: &PpuHooks)
+	pub fn clock(&mut self)
 	{
 		if self.scanline < 240
-			{ self.run_visible_scanline(hooks); }
+			{ self.run_visible_scanline(); }
 			
 		else if self.scanline == 241
 		{
@@ -262,7 +261,7 @@ impl Ppu
 			}
 		}
 		
-		(hooks.drive_nmi)((self.reg_ctrl & 0x80) != 0 && (self.reg_status & 0x80) != 0);
+		(self.hook_drive_nmi)((self.reg_ctrl & 0x80) != 0 && (self.reg_status & 0x80) != 0);
 		
 		self.dot += 1;
 		if self.dot == 341 || (self.dot == 340 && self.scanline == 261 && self.frame % 2 != 0)
@@ -278,18 +277,18 @@ impl Ppu
 	}
 	
 	
-	pub fn run_visible_scanline(&mut self, hooks: &PpuHooks)
+	pub fn run_visible_scanline(&mut self)
 	{
 		if self.dot < 256
 		{
 			if (self.reg_mask & 0x18) == 0
 			{
 				let bkg_pixel_color = if self.scroll_v >= 0x3f00 && self.scroll_v < 0x4000
-					{ 0x3f & (hooks.read)(self.scroll_v) }
+					{ 0x3f & (self.hook_read)(self.scroll_v) }
 				else
-					{ 0x3f & (hooks.read)(0x3f00) };
+					{ 0x3f & (self.hook_read)(0x3f00) };
 					
-				(hooks.output_dot)(self.scanline, self.dot, bkg_pixel_color, self.reg_mask);
+				(self.hook_output_dot)(self.scanline, self.dot, bkg_pixel_color, self.reg_mask);
 			}
 			
 			else
@@ -298,16 +297,16 @@ impl Ppu
 				
 				if self.dot == 0 || dot_into_tile == 0
 				{
-					let pal = ((hooks.read)(0x23c0 | (self.scroll_v & 0xc00) | ((self.scroll_v >> 4) & 0x38) | ((self.scroll_v >> 2) & 0x7))
+					let pal = ((self.hook_read)(0x23c0 | (self.scroll_v & 0xc00) | ((self.scroll_v >> 4) & 0x38) | ((self.scroll_v >> 2) & 0x7))
 						>> ((self.scroll_v & 0x2) | ((self.scroll_v >> 4) & 0x4)))
 						& 0x3;
 					
-					let pattern_index = (hooks.read)(0x2000 | (self.scroll_v & 0xfff));
+					let pattern_index = (self.hook_read)(0x2000 | (self.scroll_v & 0xfff));
 					let pattern_addr = ((self.reg_ctrl as u16 & 0x10) << 8) | (pattern_index << 4) as u16 | (self.scroll_v >> 12);
 					
 					self.internal_palette = pal;
-					self.internal_pattern_lo = (hooks.read)(pattern_addr);
-					self.internal_pattern_hi = (hooks.read)(pattern_addr + 8);
+					self.internal_pattern_lo = (self.hook_read)(pattern_addr);
+					self.internal_pattern_hi = (self.hook_read)(pattern_addr + 8);
 				}
 				
 				let dot_mask = 0x80 >> dot_into_tile;
@@ -321,9 +320,9 @@ impl Ppu
 					{ (self.internal_palette << 2) as u16 | bitplane_dot };
 					
 				let color_mask = if self.reg_mask & 1 != 0 { 0x30 } else { 0x3f };
-				let color = color_mask & (hooks.read)(0x3f00 | color_index);
+				let color = color_mask & (self.hook_read)(0x3f00 | color_index);
 				
-				self.blend_bkg_with_spr_and_output(bitplane_dot, color, hooks);
+				self.blend_bkg_with_spr_and_output(bitplane_dot, color);
 				
 				if dot_into_tile == 7
 				{
@@ -341,7 +340,7 @@ impl Ppu
 		else if self.dot == 256
 		{
 			if self.reg_mask & 0x10 != 0
-				{ self.run_sprite_fetch(hooks); }
+				{ self.run_sprite_fetch(); }
 		}
 		
 		else if self.dot == 257
@@ -381,7 +380,7 @@ impl Ppu
 	}
 	
 	
-	pub fn blend_bkg_with_spr_and_output(&mut self, bkg_bitplane_dot: u16, bkg_color: u8, hooks: &PpuHooks)
+	pub fn blend_bkg_with_spr_and_output(&mut self, bkg_bitplane_dot: u16, bkg_color: u8)
 	{
 		let sprites_enabled =
 			(self.reg_mask & 0x10) != 0 &&
@@ -422,18 +421,18 @@ impl Ppu
 					{ break; }
 					
 				let spr_color_mask = if (self.reg_mask & 0x1) != 0 { 0x30 } else { 0x3f };
-				let spr_color = spr_color_mask & (hooks.read)(0x3f10 | (spr.palette_index << 2) as u16 | spr_bitplane_dot);
+				let spr_color = spr_color_mask & (self.hook_read)(0x3f10 | (spr.palette_index << 2) as u16 | spr_bitplane_dot);
 				
-				(hooks.output_dot)(self.scanline, self.dot, spr_color, self.reg_mask);
+				(self.hook_output_dot)(self.scanline, self.dot, spr_color, self.reg_mask);
 				return;
 			}
 		}
 		
-		(hooks.output_dot)(self.scanline, self.dot, bkg_color, self.reg_mask);
+		(self.hook_output_dot)(self.scanline, self.dot, bkg_color, self.reg_mask);
 	}
 	
 	
-	pub fn run_sprite_fetch(&mut self, hooks: &PpuHooks)
+	pub fn run_sprite_fetch(&mut self)
 	{
 		self.internal_scanline_objs = [None; 8];
 		
@@ -457,13 +456,13 @@ impl Ppu
 			{
 				if spr_height == 16
 				{
-					(hooks.read)(0x1000);
-					(hooks.read)(0x1000);
+					(self.hook_read)(0x1000);
+					(self.hook_read)(0x1000);
 				}
 				else
 				{
-					(hooks.read)(default_pattern_table);
-					(hooks.read)(default_pattern_table);
+					(self.hook_read)(default_pattern_table);
+					(self.hook_read)(default_pattern_table);
 				}
 				
 				continue;
@@ -516,8 +515,8 @@ impl Ppu
 			}
 			
 			let pattern_addr = pattern_table | (pattern_index << 4) as u16 | pattern_row as u16;
-			let pattern_lo = (hooks.read)(pattern_addr);
-			let pattern_hi = (hooks.read)(pattern_addr + 8);
+			let pattern_lo = (self.hook_read)(pattern_addr);
+			let pattern_hi = (self.hook_read)(pattern_addr + 8);
 			
 			self.internal_scanline_objs[slot] = Some(ScanlineObj
 			{

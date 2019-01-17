@@ -1,6 +1,9 @@
 [package]
-name = "mahnes"
+name = "mahnes_rs"
 version = "0.1.0"
 authors = ["Henrique Lorenzi <hlorenzi12@gmail.com>"]
 
-[dependencies]
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "mahnes_rs"
+path = "src/lib.rs"

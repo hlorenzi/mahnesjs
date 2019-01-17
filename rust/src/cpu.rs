@@ -41,16 +41,11 @@ pub struct Cpu
 	pub reg_p: u8,
 	
 	internal_addr: u16,
-	internal_data: u8
-}
-
-
-pub struct CpuHooks<'a>
-{
-	pub read: &'a CpuReadFn,
-	pub write: &'a CpuWriteFn,
+	internal_data: u8,
 	
-	pub execute_instr: &'a CpuExecuteInstrFn
+	pub hook_read: Box<CpuReadFn>,
+	pub hook_write: Box<CpuWriteFn>,
+	pub hook_execute_instr: Option<Box<CpuExecuteInstrFn>>
 }
 
 
@@ -83,7 +78,11 @@ impl Cpu
 			reg_p: 0,
 			
 			internal_addr: 0,
-			internal_data: 0
+			internal_data: 0,
+			
+			hook_read: Box::new(|_| panic!("unconnected hook")),
+			hook_write: Box::new(|_, _| panic!("unconnected hook")),
+			hook_execute_instr: None
 		}
 	}
 	
@@ -129,37 +128,37 @@ impl Cpu
 	}
 	
 	
-	pub fn clock(&mut self, hooks: &CpuHooks)
+	pub fn clock(&mut self)
 	{
 		self.opcode_step += 1;
 		
 		if self.routine_reset
-			{ self.run_reset_routine(hooks); }
+			{ self.run_reset_routine(); }
 			
 		else if self.routine_nmi
-			{ self.run_nmi_routine(hooks); }
+			{ self.run_nmi_routine(); }
 		
 		else if self.routine_irq
-			{ self.run_irq_routine(hooks); }
+			{ self.run_irq_routine(); }
 			
 		else
-			{ self.dispatch_opcode(hooks); }
+			{ self.dispatch_opcode(); }
 			
 		self.clocks += 1;
 	}
 	
 	
-	fn run_reset_routine(&mut self, hooks: &CpuHooks)
+	fn run_reset_routine(&mut self)
 	{
 		match self.opcode_step
 		{
 			1 | 2 | 3 | 4 => { }
 			
-			5 => self.reg_pc = (hooks.read)(0xfffc) as u16,
+			5 => self.reg_pc = (self.hook_read)(0xfffc) as u16,
 				
 			6 =>
 			{
-				self.reg_pc |= ((hooks.read)(0xfffd) as u16) << 8;
+				self.reg_pc |= ((self.hook_read)(0xfffd) as u16) << 8;
 				self.routine_reset = false;
 				self.end_opcode();
 			}
@@ -169,7 +168,7 @@ impl Cpu
 	}
 	
 	
-	fn run_nmi_routine(&mut self, hooks: &CpuHooks)
+	fn run_nmi_routine(&mut self)
 	{
 		let reg_pc = self.reg_pc;
 		let reg_p = self.reg_p;
@@ -178,19 +177,19 @@ impl Cpu
 		{
 			1 => { }
 				
-			2 => self.push_stack(hooks, (reg_pc >> 8) as u8),
+			2 => self.push_stack((reg_pc >> 8) as u8),
 				
-			3 => self.push_stack(hooks, (reg_pc & 0xff) as u8),
+			3 => self.push_stack((reg_pc & 0xff) as u8),
 			
-			4 => self.push_stack(hooks, reg_p),
+			4 => self.push_stack(reg_p),
 			
 			5 => { }
 			
-			6 => self.reg_pc = (hooks.read)(0xfffa) as u16,
+			6 => self.reg_pc = (self.hook_read)(0xfffa) as u16,
 				
 			7 =>
 			{
-				self.reg_pc |= ((hooks.read)(0xfffb) as u16) << 8;
+				self.reg_pc |= ((self.hook_read)(0xfffb) as u16) << 8;
 				self.routine_nmi = false;
 				self.end_opcode();
 			}
@@ -200,7 +199,7 @@ impl Cpu
 	}
 	
 	
-	fn run_irq_routine(&mut self, hooks: &CpuHooks)
+	fn run_irq_routine(&mut self)
 	{
 		let reg_pc = self.reg_pc;
 		let reg_p = self.reg_p;
@@ -209,19 +208,19 @@ impl Cpu
 		{
 			1 => self.reg_p &= !FLAG_I,
 				
-			2 => self.push_stack(hooks, (reg_pc >> 8) as u8),
+			2 => self.push_stack((reg_pc >> 8) as u8),
 				
-			3 => self.push_stack(hooks, (reg_pc & 0xff) as u8),
+			3 => self.push_stack((reg_pc & 0xff) as u8),
 			
-			4 => self.push_stack(hooks, reg_p),
+			4 => self.push_stack(reg_p),
 			
 			5 => { }
 			
-			6 => self.reg_pc = (hooks.read)(0xfffe) as u16,
+			6 => self.reg_pc = (self.hook_read)(0xfffe) as u16,
 				
 			7 =>
 			{
-				self.reg_pc |= ((hooks.read)(0xffff) as u16) << 8;
+				self.reg_pc |= ((self.hook_read)(0xffff) as u16) << 8;
 				self.routine_irq = false;
 				self.end_opcode();
 			}
@@ -231,9 +230,9 @@ impl Cpu
 	}
 	
 	
-	fn dispatch_opcode(&mut self, hooks: &CpuHooks)
+	fn dispatch_opcode(&mut self)
 	{
-		static OPCODE_TABLE: [[fn(&mut Cpu, &CpuHooks); 8]; 256] =
+		static OPCODE_TABLE: [[fn(&mut Cpu); 8]; 256] =
 		[
 			/* 0x00 BRK --- */ [Cpu::fetch_op, Cpu::read_data, Cpu::push_brk3, Cpu::push_brk4, Cpu::exec_brk5, Cpu::exec_brk6, Cpu::exec_stk7, Cpu::trap,      ], 
 			/* 0x01 ORA ptx */ [Cpu::fetch_op, Cpu::read_addr, Cpu::exec_ptx3, Cpu::exec_ptx4, Cpu::exec_ptx5, Cpu::exec_rd1, Cpu::trap,      Cpu::trap,      ], 
@@ -493,7 +492,7 @@ impl Cpu
 			/* 0xff ??? --- */ [Cpu::fetch_op, Cpu::trap,      Cpu::trap,      Cpu::trap,      Cpu::trap,      Cpu::trap,      Cpu::trap,      Cpu::trap,      ], 
 		];
 	
-		OPCODE_TABLE[self.opcode as usize][(self.opcode_step - 1) as usize](self, hooks);
+		OPCODE_TABLE[self.opcode as usize][(self.opcode_step - 1) as usize](self);
 	}
 	
 	
@@ -503,10 +502,10 @@ impl Cpu
 	}
 	
 	
-	fn end_opcode_and_prefetch(&mut self, hooks: &CpuHooks)
+	fn end_opcode_and_prefetch(&mut self)
 	{
 		self.opcode_step = 1;
-		Cpu::fetch_op(self, hooks);
+		Cpu::fetch_op(self);
 	}
 	
 	
@@ -516,19 +515,19 @@ impl Cpu
 	}
 	
 	
-	fn trap(self: &mut Cpu, _hooks: &CpuHooks)
+	fn trap(self: &mut Cpu)
 	{
 		panic!("unhandled opcode(0x{:x}) step({})", self.opcode, self.opcode_step);
 	}
 	
 	
-	fn dummy(_self: &mut Cpu, _hooks: &CpuHooks)
+	fn dummy(_self: &mut Cpu)
 	{
 	
 	}
 	
 	
-	fn fetch_op(self: &mut Cpu, hooks: &CpuHooks)
+	fn fetch_op(self: &mut Cpu)
 	{
 		if self.acknowledge_nmi
 		{
@@ -545,13 +544,15 @@ impl Cpu
 		
 		else
 		{	
-			self.opcode = (hooks.read)(self.reg_pc);
+			self.opcode = (self.hook_read)(self.reg_pc);
 			
 			{
 				let reg_pc = self.reg_pc;
-				let next_byte1 = (hooks.read)(self.reg_pc.wrapping_add(1));
-				let next_byte2 = (hooks.read)(self.reg_pc.wrapping_add(2));
-				(hooks.execute_instr)(self, reg_pc, self.opcode, next_byte1, next_byte2);
+				let next_byte1 = (self.hook_read)(self.reg_pc.wrapping_add(1));
+				let next_byte2 = (self.hook_read)(self.reg_pc.wrapping_add(2));
+				
+				if let Some(ref func) = self.hook_execute_instr
+					{ (func)(self, reg_pc, self.opcode, next_byte1, next_byte2); }
 			}
 			
 			self.increment_pc();
@@ -559,122 +560,123 @@ impl Cpu
 	}
 	
 	
-	fn exec_imm(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_imm(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.reg_pc);
+		self.internal_data = (self.hook_read)(self.reg_pc);
 		self.increment_pc();
-		self.exec_op(hooks);
+		self.exec_op();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_imp(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_imp(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.reg_pc);
-		self.exec_op(hooks);
+		self.internal_data = (self.hook_read)(self.reg_pc);
+		self.exec_op();
 		self.end_opcode();
 	}
 	
 	
-	fn read_addr(self: &mut Cpu, hooks: &CpuHooks)
+	fn read_addr(self: &mut Cpu)
 	{
-		self.internal_addr = (hooks.read)(self.reg_pc) as u16;
-		self.increment_pc();
-	}
-	
-	
-	fn read_data(self: &mut Cpu, hooks: &CpuHooks)
-	{
-		self.internal_data = (hooks.read)(self.reg_pc);
-	}
-	
-	
-	fn read_dat2(self: &mut Cpu, hooks: &CpuHooks)
-	{
-		self.internal_data = (hooks.read)(self.reg_pc);
+		self.internal_addr = (self.hook_read)(self.reg_pc) as u16;
 		self.increment_pc();
 	}
 	
 	
-	fn exec_rd1(self: &mut Cpu, hooks: &CpuHooks)
+	fn read_data(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.internal_addr);
-		self.exec_op(hooks);
+		self.internal_data = (self.hook_read)(self.reg_pc);
+		self.increment_pc();
+	}
+	
+	
+	fn read_dat2(self: &mut Cpu)
+	{
+		self.internal_data = (self.hook_read)(self.reg_pc);
+		self.increment_pc();
+	}
+	
+	
+	fn exec_rd1(self: &mut Cpu)
+	{
+		self.internal_data = (self.hook_read)(self.internal_addr);
+		self.exec_op();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_mdf1(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_mdf1(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.internal_addr);
+		self.internal_data = (self.hook_read)(self.internal_addr);
 	}
 	
 	
-	fn exec_mdf2(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_mdf2(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data); // Dummy write
-		self.exec_op(hooks);
+		(self.hook_write)(self.internal_addr, self.internal_data); // Dummy write
+		self.exec_op();
 	}
 	
 	
-	fn exec_wrt1(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_wrt1(self: &mut Cpu)
 	{
-		self.exec_op(hooks);
+		self.exec_op();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_wrt2(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_wrt2(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.internal_addr);
-		self.exec_op(hooks);
+		self.internal_data = (self.hook_read)(self.internal_addr);
+		self.exec_op();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_zrx3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_zrx3(self: &mut Cpu)
 	{
-		(hooks.read)(self.internal_addr); // Dummy read
+		(self.hook_read)(self.internal_addr); // Dummy read
 		self.internal_addr = Cpu::calculate_effective_addr(self.internal_addr, self.reg_x, false);
 	}
 	
 	
-	fn exec_zry3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_zry3(self: &mut Cpu)
 	{
-		(hooks.read)(self.internal_addr); // Dummy read
+		(self.hook_read)(self.internal_addr); // Dummy read
 		self.internal_addr = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, false);
 	}
 	
 	
-	fn exec_abs3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abs3(self: &mut Cpu)
 	{
-		self.internal_addr |= ((hooks.read)(self.reg_pc) as u16) << 8;
+		self.internal_addr |= ((self.hook_read)(self.reg_pc) as u16) << 8;
 		self.increment_pc();
 	}
 	
 	
-	fn exec_jmp3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_jmp3(self: &mut Cpu)
 	{
-		self.internal_addr |= ((hooks.read)(self.reg_pc) as u16) << 8;
+		self.internal_addr |= ((self.hook_read)(self.reg_pc) as u16) << 8;
 		self.reg_pc = self.internal_addr;
 		self.end_opcode();
 	}
 	
 	
-	fn exec_ptx3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_ptx3(self: &mut Cpu)
 	{
-		(hooks.read)(self.internal_addr); // Dummy read
+		(self.hook_read)(self.internal_addr); // Dummy read
 		self.internal_data = (self.internal_addr as u8).wrapping_add(self.reg_x);
 	}
 	
 	
-	fn exec_pty3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_pty3(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.internal_addr);
+		self.internal_data = (self.hook_read)(self.internal_addr);
 	}
 	
 	
-	fn exec_rel3(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rel3(self: &mut Cpu)
 	{
 		let branch_taken = match self.opcode
 		{
@@ -690,113 +692,113 @@ impl Cpu
 		};
 		
 		if branch_taken
-			{ (hooks.read)(self.internal_addr); } // Dummy read
+			{ (self.hook_read)(self.internal_addr); } // Dummy read
 		else
-			{ self.end_opcode_and_prefetch(hooks); }
+			{ self.end_opcode_and_prefetch(); }
 	}
 	
 	
-	fn push_brk3(self: &mut Cpu, hooks: &CpuHooks)
+	fn push_brk3(self: &mut Cpu)
 	{
 		let reg_pc = self.reg_pc;
-		self.push_stack(hooks, (reg_pc >> 8) as u8);
+		self.push_stack((reg_pc >> 8) as u8);
 	}
 	
 	
-	fn incr_s(self: &mut Cpu, _hooks: &CpuHooks)
+	fn incr_s(self: &mut Cpu)
 	{
 		self.reg_s.wrapping_add(1);
 	}
 	
 	
-	fn push_a(self: &mut Cpu, hooks: &CpuHooks)
+	fn push_a(self: &mut Cpu)
 	{
 		let reg_a = self.reg_a;
-		self.push_stack(hooks, reg_a);
+		self.push_stack(reg_a);
 		self.end_opcode();
 	}
 	
 	
-	fn push_p(self: &mut Cpu, hooks: &CpuHooks)
+	fn push_p(self: &mut Cpu)
 	{
 		let reg_p = self.reg_p;
-		self.push_stack(hooks, reg_p | FLAG_B | FLAG_U);
+		self.push_stack(reg_p | FLAG_B | FLAG_U);
 		self.end_opcode();
 	}
 	
 	
-	fn exec_abx4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abx4(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_x, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_x, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 	}
 	
 	
-	fn exec_abx4_r(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abx4_r(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_x, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_x, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 		
 		if addr_without_carry == addr_with_carry
 		{
-			self.exec_op(hooks);
+			self.exec_op();
 			self.end_opcode();
 		}
 	}
 	
 	
-	fn exec_aby4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_aby4(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 	}
 	
 	
-	fn exec_aby4_r(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_aby4_r(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 		
 		if addr_without_carry == addr_with_carry
 		{
-			self.exec_op(hooks);
+			self.exec_op();
 			self.end_opcode();
 		}
 	}
 	
 	
-	fn exec_ptx4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_ptx4(self: &mut Cpu)
 	{
-		self.internal_addr = (hooks.read)(self.internal_data as u16) as u16;
+		self.internal_addr = (self.hook_read)(self.internal_data as u16) as u16;
 	}
 	
 	
-	fn exec_ind4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_ind4(self: &mut Cpu)
 	{
-		self.internal_data = (hooks.read)(self.internal_addr);
+		self.internal_data = (self.hook_read)(self.internal_addr);
 	}
 	
 	
-	fn exec_pty4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_pty4(self: &mut Cpu)
 	{
-		self.internal_addr = ((hooks.read)(self.internal_addr.wrapping_add(1) & 0xff) as u16) << 8;
+		self.internal_addr = ((self.hook_read)(self.internal_addr.wrapping_add(1) & 0xff) as u16) << 8;
 		self.internal_addr |= self.internal_data as u16;
 	}
 	
 	
-	fn exec_rel4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rel4(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_branch_addr(self.reg_pc, self.internal_data, false);
 		let addr_with_carry    = Cpu::calculate_branch_addr(self.reg_pc, self.internal_data, true);
@@ -804,37 +806,37 @@ impl Cpu
 		if addr_without_carry == addr_with_carry
 		{
 			self.reg_pc = addr_with_carry;
-			self.end_opcode_and_prefetch(hooks);
+			self.end_opcode_and_prefetch();
 		}
 		else
-			{ (hooks.read)(addr_without_carry); } // Dummy read
+			{ (self.hook_read)(addr_without_carry); } // Dummy read
 	}
 	
 	
-	fn push_brk4(self: &mut Cpu, hooks: &CpuHooks)
+	fn push_brk4(self: &mut Cpu)
 	{
 		let reg_pc = self.reg_pc;
-		self.push_stack(hooks, (reg_pc & 0xff) as u8);
+		self.push_stack((reg_pc & 0xff) as u8);
 	}
 	
 	
-	fn exec_rti4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rti4(self: &mut Cpu)
 	{
-		self.reg_p = self.read_stack(hooks);
+		self.reg_p = self.read_stack();
 		self.reg_s = self.reg_s.wrapping_add(1);
 	}
 	
 	
-	fn exec_rts4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rts4(self: &mut Cpu)
 	{
-		self.reg_pc = self.read_stack(hooks) as u16;
+		self.reg_pc = self.read_stack() as u16;
 		self.reg_s = self.reg_s.wrapping_add(1);
 	}
 	
 	
-	fn exec_pla4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_pla4(self: &mut Cpu)
 	{
-		let reg_a = self.read_stack(hooks);
+		let reg_a = self.read_stack();
 		self.adjust_flag_z(reg_a);
 		self.adjust_flag_n(reg_a);
 		self.reg_a = reg_a;
@@ -842,178 +844,178 @@ impl Cpu
 	}
 	
 	
-	fn exec_plp4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_plp4(self: &mut Cpu)
 	{
-		self.reg_p = self.read_stack(hooks);
+		self.reg_p = self.read_stack();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_jsr4(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_jsr4(self: &mut Cpu)
 	{
 		let reg_pc = self.reg_pc;
-		self.push_stack(hooks, (reg_pc >> 8) as u8);
+		self.push_stack((reg_pc >> 8) as u8);
 	}
 	
 	
-	fn exec_zer5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_zer5(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
+		(self.hook_write)(self.internal_addr, self.internal_data);
 		self.end_opcode();
 	}
 	
 	
-	fn exec_abs5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abs5(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
-		self.exec_op(hooks);
+		(self.hook_write)(self.internal_addr, self.internal_data);
+		self.exec_op();
 	}
 	
 	
-	fn exec_ptx5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_ptx5(self: &mut Cpu)
 	{
-		self.internal_addr |= (hooks.read)(self.internal_data.wrapping_add(1) as u16) as u16;
+		self.internal_addr |= (self.hook_read)(self.internal_data.wrapping_add(1) as u16) as u16;
 	}
 	
 	
-	fn exec_pty5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_pty5(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 	}
 	
 	
-	fn exec_pty5_r(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_pty5_r(self: &mut Cpu)
 	{
 		let addr_without_carry = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, false);
 		let addr_with_carry    = Cpu::calculate_effective_addr(self.internal_addr, self.reg_y, true);
 	
 		self.internal_addr = addr_with_carry;
-		self.internal_data = (hooks.read)(addr_without_carry); // Wrong read if address needs carry
+		self.internal_data = (self.hook_read)(addr_without_carry); // Wrong read if address needs carry
 		
 		if addr_without_carry == addr_with_carry
 		{
-			self.exec_op(hooks);
+			self.exec_op();
 			self.end_opcode();
 		}
 	}
 	
 	
-	fn exec_rel5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rel5(self: &mut Cpu)
 	{
 		self.reg_pc = Cpu::calculate_branch_addr(self.reg_pc, self.internal_data, true);
-		self.end_opcode_and_prefetch(hooks);
+		self.end_opcode_and_prefetch();
 	}
 	
 	
-	fn exec_ind5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_ind5(self: &mut Cpu)
 	{
 		self.reg_pc = self.internal_data as u16;
-		self.reg_pc |= ((hooks.read)((self.internal_addr & 0xff00) | (self.internal_addr.wrapping_add(1) & 0xff)) as u16) << 8;
+		self.reg_pc |= ((self.hook_read)((self.internal_addr & 0xff00) | (self.internal_addr.wrapping_add(1) & 0xff)) as u16) << 8;
 		self.end_opcode();
 	}
 	
 	
-	fn exec_brk5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_brk5(self: &mut Cpu)
 	{
 		let reg_p = self.reg_p;
-		self.push_stack(hooks, reg_p);
+		self.push_stack(reg_p);
 	}
 	
 	
-	fn exec_rti5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rti5(self: &mut Cpu)
 	{
-		self.reg_pc = self.read_stack(hooks) as u16;
+		self.reg_pc = self.read_stack() as u16;
 		self.reg_s = self.reg_s.wrapping_add(1);
 	}
 	
 	
-	fn exec_rts5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rts5(self: &mut Cpu)
 	{
-		self.reg_pc |= (self.read_stack(hooks) as u16) << 8;
+		self.reg_pc |= (self.read_stack() as u16) << 8;
 	}
 	
 	
-	fn exec_jsr5(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_jsr5(self: &mut Cpu)
 	{
 		let reg_pc = self.reg_pc;
-		self.push_stack(hooks, (reg_pc & 0xff) as u8);
+		self.push_stack((reg_pc & 0xff) as u8);
 	}
 	
 	
-	fn exec_abs6(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abs6(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
+		(self.hook_write)(self.internal_addr, self.internal_data);
 		self.end_opcode();
 	}
 	
 	
-	fn exec_abx6(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abx6(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
-		self.exec_op(hooks);
+		(self.hook_write)(self.internal_addr, self.internal_data);
+		self.exec_op();
 	}
 	
 	
-	fn exec_brk6(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_brk6(self: &mut Cpu)
 	{
-		self.reg_pc = (hooks.read)(0xfffe) as u16;
+		self.reg_pc = (self.hook_read)(0xfffe) as u16;
 	}
 	
 	
-	fn exec_rti6(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_rti6(self: &mut Cpu)
 	{
-		self.reg_pc |= (self.read_stack(hooks) as u16) << 8;
+		self.reg_pc |= (self.read_stack() as u16) << 8;
 		self.end_opcode();
 	}
 	
 	
-	fn exec_rts6(self: &mut Cpu, _hooks: &CpuHooks)
+	fn exec_rts6(self: &mut Cpu)
 	{
 		self.increment_pc();
 		self.end_opcode();
 	}
 	
 	
-	fn exec_jsr6(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_jsr6(self: &mut Cpu)
 	{
-		self.reg_pc = (self.internal_data as u16) | (((hooks.read)(self.reg_pc) as u16) << 8);
+		self.reg_pc = (self.internal_data as u16) | (((self.hook_read)(self.reg_pc) as u16) << 8);
 		self.end_opcode();
 	}
 	
 	
-	fn exec_abx7(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_abx7(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
+		(self.hook_write)(self.internal_addr, self.internal_data);
 		self.end_opcode();
 	}
 	
 	
-	/*fn exec_ptx7(self: &mut Cpu, hooks: &CpuHooks)
+	/*fn exec_ptx7(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
-		self.exec_op(hooks);
+		(self.hook_write)(self.internal_addr, self.internal_data);
+		self.exec_op();
 	}*/
 	
 	
-	fn exec_stk7(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_stk7(self: &mut Cpu)
 	{
-		self.reg_pc |= ((hooks.read)(0xffff) as u16) << 8;
+		self.reg_pc |= ((self.hook_read)(0xffff) as u16) << 8;
 		self.end_opcode();
 	}
 	
 	
-	/*fn exec_ptx8(self: &mut Cpu, hooks: &CpuHooks)
+	/*fn exec_ptx8(self: &mut Cpu)
 	{
-		(hooks.write)(self.internal_addr, self.internal_data);
+		(self.hook_write)(self.internal_addr, self.internal_data);
 		self.end_opcode();
 	}*/
 	
 	
-	fn exec_op(self: &mut Cpu, hooks: &CpuHooks)
+	fn exec_op(self: &mut Cpu)
 	{
 		match self.opcode
 		{
@@ -1176,17 +1178,17 @@ impl Cpu
 			cpu_opcodes::STA_ABY |
 			cpu_opcodes::STA_PTX |
 			cpu_opcodes::STA_PTY =>
-				(hooks.write)(self.internal_addr, self.reg_a),
+				(self.hook_write)(self.internal_addr, self.reg_a),
 			
 			cpu_opcodes::STX_ZER |
 			cpu_opcodes::STX_ZRY |
 			cpu_opcodes::STX_ABS =>
-				(hooks.write)(self.internal_addr, self.reg_x),
+				(self.hook_write)(self.internal_addr, self.reg_x),
 		
 			cpu_opcodes::STY_ZER |
 			cpu_opcodes::STY_ZRX |
 			cpu_opcodes::STY_ABS =>
-				(hooks.write)(self.internal_addr, self.reg_y),
+				(self.hook_write)(self.internal_addr, self.reg_y),
 			
 			cpu_opcodes::ADC_IMM |
 			cpu_opcodes::ADC_ZER |
@@ -1523,15 +1525,15 @@ impl Cpu
 	}
 	
 	
-	fn push_stack(&mut self, hooks: &CpuHooks, value: u8)
+	fn push_stack(&mut self, value: u8)
 	{
-		(hooks.write)(0x100 + (self.reg_s as u16), value);
+		(self.hook_write)(0x100 + (self.reg_s as u16), value);
 		self.reg_s = self.reg_s.wrapping_sub(1);
 	}
 	
 	
-	fn read_stack(&mut self, hooks: &CpuHooks) -> u8
+	fn read_stack(&mut self) -> u8
 	{
-		(hooks.read)(0x100 + (self.reg_s as u16))
+		(self.hook_read)(0x100 + (self.reg_s as u16))
 	}
 }

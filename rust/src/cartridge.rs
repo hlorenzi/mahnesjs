@@ -6,7 +6,7 @@ pub trait Cartridge
 	}
 	
 	
-	fn get_ines_mapper_code(&self) -> u8
+	fn get_ines_mapper_code(&self) -> usize
 	{
 		0
 	}

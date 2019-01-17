@@ -5,6 +5,7 @@ import { Disassembler } from "./emu/cpu_dis.js"
 let g_wasm = null
 let g_desiredBackend = 0
 let g_isRunning = false
+let g_screenBuffer = null
 
 let audioCtx = null
 let keyA = false
@@ -136,9 +137,10 @@ function loadJS(buffer)
 	
 	let canvas = document.getElementById("canvasScreen")
 	let ctx = canvas.getContext("2d")
-	let ctxData = ctx.createImageData(256, 240)
+	g_screenBuffer = ctx.createImageData(256, 240)
+	
 	emu.connect(
-		(scanline, dot, color, mask) => outputJS(emu, ctx, ctxData, scanline, dot, color, mask),
+		(scanline, dot, color, mask) => outputJS(emu, ctx, scanline, dot, color, mask),
 		(i) => [keyA, keyB, keySelect, keyStart, keyUp, keyDown, keyLeft, keyRight],
 		audioCtx)
 	
@@ -201,14 +203,23 @@ function loadJS(buffer)
 
 function loadWasm(buffer)
 {
+	buffer = new Uint8Array(buffer)
+	
 	let wasm_buffer = g_wasm.instance.exports.wasm_buffer_new(buffer.length)
 	for (let i = 0; i < buffer.length; i++)
 		g_wasm.instance.exports.wasm_buffer_set(wasm_buffer, i, buffer[i])
 	
 	g_wasm.instance.exports.wasm_core_new(wasm_buffer)
 	g_wasm.instance.exports.wasm_buffer_drop(wasm_buffer)
-		
+	
 	console.log("ok!")
+	
+	let canvas = document.getElementById("canvasScreen")
+	let ctx = canvas.getContext("2d")
+	g_screenBuffer = ctx.createImageData(256, 240)
+	
+	g_isRunning = true
+	window.requestAnimationFrame(() => runFrameWasm())
 }
 
 
@@ -224,25 +235,37 @@ function runFrameJS(emu)
 
 function runFrameWasm()
 {
-	for (let i = 0; i < 29780; i++)
-		emu.run()
+	g_wasm.instance.exports.wasm_core_run_frame()
+	outputWasm()
 	
 	if (g_isRunning)
 		window.requestAnimationFrame(() => runFrameWasm())
 }
 
 
-function outputJS(emu, ctx, ctxData, scanline, dot, color, mask)
+function outputJS(emu, ctx, scanline, dot, color, mask)
 {
 	if (scanline == 0 && dot == 0)
-		ctx.putImageData(ctxData, 0, 0)
+		ctx.putImageData(g_screenBuffer, 0, 0)
 	
 	const dataAddr = ((scanline * 256) + dot) * 4
 	const palAddr = color * 4
-	ctxData.data[dataAddr + 0] = palette[palAddr + 0]
-	ctxData.data[dataAddr + 1] = palette[palAddr + 1]
-	ctxData.data[dataAddr + 2] = palette[palAddr + 2]
-	ctxData.data[dataAddr + 3] = palette[palAddr + 3]
+	g_screenBuffer.data[dataAddr + 0] = palette[palAddr + 0]
+	g_screenBuffer.data[dataAddr + 1] = palette[palAddr + 1]
+	g_screenBuffer.data[dataAddr + 2] = palette[palAddr + 2]
+	g_screenBuffer.data[dataAddr + 3] = palette[palAddr + 3]
+}
+
+
+function outputWasm()
+{
+	const ptr = g_wasm.instance.exports.wasm_core_get_screen_buffer()
+	const buffer = new Uint8ClampedArray(g_wasm.instance.exports.memory.buffer, ptr, 256 * 240 * 4)
+	const imageData = new ImageData(buffer, 256, 240)
+	
+	let canvas = document.getElementById("canvasScreen")
+	let ctx = canvas.getContext("2d")
+	ctx.putImageData(imageData, 0, 0)
 }
 
 

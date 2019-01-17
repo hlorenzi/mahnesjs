@@ -117,6 +117,21 @@ impl Core
 		{
 			(*core).ram[(addr & 0x7ff) as usize] = val;
 		}
+		
+		else if addr < 0x3000
+		{
+			match addr % 8
+			{
+				0 => (*core).ppu.write_reg_ctrl(val),
+				1 => (*core).ppu.write_reg_mask(val),
+				3 => (*core).ppu.write_reg_oamaddr(val),
+				4 => (*core).ppu.write_reg_oamdata(val),
+				5 => (*core).ppu.write_reg_scroll(val),
+				6 => (*core).ppu.write_reg_addr(val),
+				7 => (*core).ppu.write_reg_data(val),
+				_ => unreachable!()
+			}
+		}
 	}
 	
 	

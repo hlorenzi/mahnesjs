@@ -2,6 +2,9 @@ use Core;
 use RomINES;
 
 
+pub static mut WASM_CORE: Option<Box<Core>> = None;
+
+
 #[no_mangle]
 pub unsafe extern fn wasm_buffer_new(len: usize) -> *mut Vec<u8>
 {
@@ -25,11 +28,27 @@ pub unsafe extern fn wasm_buffer_set(buffer: *mut Vec<u8>, index: usize, value: 
 
 
 #[no_mangle]
-pub unsafe extern fn wasm_core_new(buffer: *mut Vec<u8>) -> *mut Core
+pub unsafe extern fn wasm_core_new(buffer: *mut Vec<u8>)
 {
 	let ines = RomINES::new(&std::mem::transmute::<_, &mut Vec<u8>>(buffer));
 	let cartridge = ines.make_cartridge().unwrap();
+	
+	WASM_CORE = Some(Core::new(Box::new(cartridge)));
+}
 
-	let core = Core::new(Box::new(cartridge));
-	Box::into_raw(core)
+
+#[no_mangle]
+pub unsafe extern fn wasm_core_run_frame()
+{
+	for _ in 0..29780
+	{
+		WASM_CORE.as_mut().unwrap().run();
+	}
+}
+
+
+#[no_mangle]
+pub unsafe extern fn wasm_core_get_screen_buffer() -> *mut u8
+{
+	WASM_CORE.as_mut().unwrap().screen.as_mut_ptr()
 }

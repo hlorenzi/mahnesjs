@@ -75,7 +75,7 @@ impl Cpu
 			reg_x: 0,
 			reg_y: 0,
 			reg_s: 0xfd,
-			reg_p: 0,
+			reg_p: 0x24,
 			
 			internal_addr: 0,
 			internal_data: 0,
@@ -103,10 +103,17 @@ impl Cpu
 		self.reg_x = 0;
 		self.reg_y = 0;
 		self.reg_s = 0xfd;
-		self.reg_p = 0;
+		self.reg_p = 0x24;
 		
 		self.internal_addr = 0;
 		self.internal_data = 0;
+	}
+	
+	
+	pub fn set_pc(&mut self, addr: u16)
+	{
+		self.reg_pc = addr;
+		self.routine_reset = false;
 	}
 	
 	
@@ -115,7 +122,7 @@ impl Cpu
 		if !self.signal_nmi && active
 			{ self.acknowledge_nmi = true; }
 			
-		self.signal_nmi = true;
+		self.signal_nmi = active;
 	}
 	
 	
@@ -124,7 +131,7 @@ impl Cpu
 		if !self.signal_irq && active
 			{ self.acknowledge_irq = true; }
 			
-		self.signal_irq = true;
+		self.signal_irq = active;
 	}
 	
 	
@@ -594,7 +601,6 @@ impl Cpu
 	fn read_dat2(self: &mut Cpu)
 	{
 		self.internal_data = (self.hook_read)(self.reg_pc);
-		self.increment_pc();
 	}
 	
 	
@@ -707,7 +713,7 @@ impl Cpu
 	
 	fn incr_s(self: &mut Cpu)
 	{
-		self.reg_s.wrapping_add(1);
+		self.reg_s = self.reg_s.wrapping_add(1);
 	}
 	
 	
@@ -822,7 +828,7 @@ impl Cpu
 	
 	fn exec_rti4(self: &mut Cpu)
 	{
-		self.reg_p = self.read_stack();
+		self.reg_p = self.read_stack() | FLAG_U;
 		self.reg_s = self.reg_s.wrapping_add(1);
 	}
 	
@@ -846,7 +852,7 @@ impl Cpu
 	
 	fn exec_plp4(self: &mut Cpu)
 	{
-		self.reg_p = self.read_stack();
+		self.reg_p = self.read_stack() | FLAG_U;
 		self.end_opcode();
 	}
 	
@@ -874,7 +880,7 @@ impl Cpu
 	
 	fn exec_ptx5(self: &mut Cpu)
 	{
-		self.internal_addr |= (self.hook_read)(self.internal_data.wrapping_add(1) as u16) as u16;
+		self.internal_addr |= ((self.hook_read)(self.internal_data.wrapping_add(1) as u16) as u16) << 8;
 	}
 	
 	
@@ -1228,7 +1234,7 @@ impl Cpu
 			cpu_opcodes::SBC_PTX |
 			cpu_opcodes::SBC_PTY =>
 			{
-				let val = (self.reg_a as u16)
+				let val = ((self.reg_a as u16) + 0x100)
 					.wrapping_sub(self.internal_data as u16)
 					.wrapping_sub(if (self.reg_p & FLAG_C) != 0 { 0 } else { 1 });
 					
@@ -1257,7 +1263,7 @@ impl Cpu
 			cpu_opcodes::CMP_PTX |
 			cpu_opcodes::CMP_PTY =>
 			{
-				let val = (self.reg_a as u16)
+				let val = ((self.reg_a as u16) + 0x100)
 					.wrapping_sub(self.internal_data as u16);
 					
 				self.adjust_flag_z((val & 0xff) as u8);
@@ -1273,7 +1279,7 @@ impl Cpu
 			cpu_opcodes::CPX_ZER |
 			cpu_opcodes::CPX_ABS =>
 			{
-				let val = (self.reg_x as u16)
+				let val = ((self.reg_x as u16) + 0x100)
 					.wrapping_sub(self.internal_data as u16);
 					
 				self.adjust_flag_z((val & 0xff) as u8);
@@ -1289,7 +1295,7 @@ impl Cpu
 			cpu_opcodes::CPY_ZER |
 			cpu_opcodes::CPY_ABS =>
 			{
-				let val = (self.reg_y as u16)
+				let val = ((self.reg_y as u16) + 0x100)
 					.wrapping_sub(self.internal_data as u16);
 					
 				self.adjust_flag_z((val & 0xff) as u8);

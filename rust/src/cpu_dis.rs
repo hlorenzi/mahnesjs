@@ -266,7 +266,7 @@ fn dis_instr_pty(mnemonic: &str, byte2: u8, _byte3: u8) -> String
 fn dis_instr_rel(mnemonic: &str, byte2: u8, _byte3: u8, addr: u16) -> String
 {
 	let extended_offset = if (byte2 & 0x80) == 0 { byte2 as u16 } else { 0xff00 | byte2 as u16 };
-	let final_addr = addr.wrapping_add(extended_offset);
+	let final_addr = addr.wrapping_add(2).wrapping_add(extended_offset);
 	
 	format!("{} ${:04x}", mnemonic, final_addr)
 }

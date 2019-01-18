@@ -698,7 +698,7 @@ impl Cpu
 		};
 		
 		if branch_taken
-			{ (self.hook_read)(self.internal_addr); } // Dummy read
+			{ (self.hook_read)(self.reg_pc); } // Dummy read
 		else
 			{ self.end_opcode_and_prefetch(); }
 	}

@@ -38,6 +38,13 @@ pub unsafe extern fn wasm_core_new(buffer: *mut Vec<u8>)
 
 
 #[no_mangle]
+pub unsafe extern fn wasm_core_set_controller1(input: u8)
+{
+	WASM_CORE.as_mut().unwrap().controller1 = input;
+}
+
+
+#[no_mangle]
 pub unsafe extern fn wasm_core_run_frame()
 {
 	for _ in 0..29780

@@ -54,6 +54,8 @@ impl RomINES
 		
 		let region = buffer[10] as usize & 0x3;
 		
+		println!("chr_rom({}) = {:?}", chr_rom.len(), chr_rom);
+		
 		RomINES
 		{
 			prg_16kb_bank_num,

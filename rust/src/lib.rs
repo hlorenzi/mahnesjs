@@ -123,19 +123,14 @@ fn test_core_bkgcolor()
 	
 	core.cpu.hook_execute_instr = Some(Box::new(move |cpu, addr, opcode, imm1, imm2|
 	{
-		//if cpu.clocks < 59670
-		//	{ return; }
+		if cpu.clocks < 59670
+			{ return; }
 		
 		println!("Clock {:5} | 0x{:04x} | A:{:02x} X:{:02x} Y:{:02x} S:{:02x} P:{:02x} | {}",
 			cpu.clocks,
 			addr,
 			cpu.reg_a, cpu.reg_x, cpu.reg_y, cpu.reg_s, cpu.reg_p,
 			cpu_dis::disassemble_instruction(addr, opcode, imm1, imm2));
-			
-		if addr == 0x8193
-		{
-			std::thread::sleep(std::time::Duration::from_millis(2500));
-		}
 			
 		/*println!();
 		
@@ -160,6 +155,6 @@ fn test_core_bkgcolor()
 		std::thread::sleep(std::time::Duration::from_millis(500));*/
 	}));
 	
-	for _ in 0..150000
+	for _ in 0..500000
 		{ core.run(); }
 }

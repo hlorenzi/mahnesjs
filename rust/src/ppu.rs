@@ -24,7 +24,7 @@ pub struct Ppu
 	address_nibble: bool,
 	internal_latch: u8,
 	
-	oam: [u8; 0x100],
+	pub oam: [u8; 0x100],
 	oam_address: u8,
 	
 	internal_pattern_lo: u8,
@@ -133,7 +133,7 @@ impl Ppu
 	
 	pub fn write_reg_scroll(&mut self, val: u8)
 	{
-		if self.address_nibble
+		if !self.address_nibble
 		{
 			self.scroll_x = val & 0x7;
 			
@@ -221,7 +221,7 @@ impl Ppu
 			self.internal_latch = (self.hook_read)(self.scroll_v);
 		}
 		
-		self.scroll_v += if (self.reg_ctrl & 0x04) != 0 { 32 } else { 1 };
+		self.scroll_v += if (self.reg_ctrl & 0x04) == 0 { 1 } else { 32 };
 		val
 	}
 	
@@ -302,7 +302,7 @@ impl Ppu
 						& 0x3;
 					
 					let pattern_index = (self.hook_read)(0x2000 | (self.scroll_v & 0xfff));
-					let pattern_addr = ((self.reg_ctrl as u16 & 0x10) << 8) | (pattern_index << 4) as u16 | (self.scroll_v >> 12);
+					let pattern_addr = ((self.reg_ctrl as u16 & 0x10) << 8) | ((pattern_index as u16) << 4) | (self.scroll_v >> 12);
 					
 					self.internal_palette = pal;
 					self.internal_pattern_lo = (self.hook_read)(pattern_addr);
@@ -421,7 +421,7 @@ impl Ppu
 					{ break; }
 					
 				let spr_color_mask = if (self.reg_mask & 0x1) != 0 { 0x30 } else { 0x3f };
-				let spr_color = spr_color_mask & (self.hook_read)(0x3f10 | (spr.palette_index << 2) as u16 | spr_bitplane_dot);
+				let spr_color = spr_color_mask & (self.hook_read)(0x3f10 | ((spr.palette_index as u16) << 2) | spr_bitplane_dot);
 				
 				(self.hook_output_dot)(self.scanline, self.dot, spr_color, self.reg_mask);
 				return;
@@ -514,7 +514,7 @@ impl Ppu
 					{ pattern_row = scanline_into_spr; }
 			}
 			
-			let pattern_addr = pattern_table | (pattern_index << 4) as u16 | pattern_row as u16;
+			let pattern_addr = pattern_table | ((pattern_index as u16) << 4) | pattern_row as u16;
 			let pattern_lo = (self.hook_read)(pattern_addr);
 			let pattern_hi = (self.hook_read)(pattern_addr + 8);
 			

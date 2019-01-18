@@ -6,6 +6,7 @@ let g_wasm = null
 let g_desiredBackend = 0
 let g_isRunning = false
 let g_screenBuffer = null
+let g_requestAnimationFrame = null
 
 let audioCtx = null
 let keyA = false
@@ -23,21 +24,17 @@ export function main()
 	window.onkeydown = (ev) => handleKey(ev, true)
 	window.onkeyup = (ev) => handleKey(ev, false)
 	
-	fetch("../mahnes_rs.gc.wasm")
+	fetch("mahnes_rs.gc.wasm")
 		.then(r => r.arrayBuffer())
 		.then(r => WebAssembly.instantiate(r))
 		.then(wasm =>
 		{
 			g_wasm = wasm
 			document.getElementById("radioRunWasm").disabled = false
-			document.getElementById("labelRadioRunWasm").innerHTML = "Rust + WebAssembly"
+			document.getElementById("labelRadioRunWasm").innerHTML = "Rust + WebAssembly (no sound)"
 		})
 		
-	let canvas = document.getElementById("canvasScreen")
-	
-	let ctx = canvas.getContext("2d")
-	ctx.fillStyle = "black"
-	ctx.fillRect(0, 0, 256, 240)
+	reset()
 	
 	document.getElementById("radioRunJS")  .onclick = () => handleRadioBackendOnChange(0)
 	document.getElementById("radioRunWasm").onclick = () => handleRadioBackendOnChange(1)
@@ -47,6 +44,8 @@ export function main()
 	{
 		if (inputFile.files.length != 1)
 			return
+		
+		reset()
 		
 		let reader = new FileReader()
 		reader.onload = () => (g_desiredBackend == 0 ? loadJS(reader.result) : loadWasm(reader.result))
@@ -58,6 +57,7 @@ export function main()
 function handleRadioBackendOnChange(i)
 {
 	g_desiredBackend = i
+	reset()
 }
 
 
@@ -121,6 +121,24 @@ function handleKey(ev, down)
 }
 
 
+function reset()
+{
+	if (audioCtx != null)
+		audioCtx.close()
+	
+	if (g_requestAnimationFrame != null)
+		window.cancelAnimationFrame(g_requestAnimationFrame)
+	
+	audioCtx = null
+	g_requestAnimationFrame = null
+	
+	let canvas = document.getElementById("canvasScreen")
+	let ctx = canvas.getContext("2d")
+	ctx.fillStyle = "black"
+	ctx.fillRect(0, 0, 256, 240)
+}
+
+
 function loadJS(buffer)
 {
 	let emu = new Core()
@@ -129,9 +147,6 @@ function loadJS(buffer)
 	catch (e) { alert(e); return }
 	
 	emu.reset()
-	
-	if (audioCtx != null)
-		audioCtx.close()
 	
 	audioCtx = new AudioContext()
 	
@@ -147,7 +162,7 @@ function loadJS(buffer)
 	console.log(emu)
 	
 	g_isRunning = true
-	window.requestAnimationFrame(() => runFrameJS(emu))
+	g_requestAnimationFrame = window.requestAnimationFrame(() => runFrameJS(emu))
 	
 	emu.cpu.hookExecuteInstruction = (addr, byte1, byte2, byte3) =>
 	{
@@ -205,21 +220,27 @@ function loadWasm(buffer)
 {
 	buffer = new Uint8Array(buffer)
 	
-	let wasm_buffer = g_wasm.instance.exports.wasm_buffer_new(buffer.length)
-	for (let i = 0; i < buffer.length; i++)
-		g_wasm.instance.exports.wasm_buffer_set(wasm_buffer, i, buffer[i])
-	
-	g_wasm.instance.exports.wasm_core_new(wasm_buffer)
-	g_wasm.instance.exports.wasm_buffer_drop(wasm_buffer)
-	
-	console.log("ok!")
+	try
+	{
+		let wasm_buffer = g_wasm.instance.exports.wasm_buffer_new(buffer.length)
+		for (let i = 0; i < buffer.length; i++)
+			g_wasm.instance.exports.wasm_buffer_set(wasm_buffer, i, buffer[i])
+		
+		g_wasm.instance.exports.wasm_core_new(wasm_buffer)
+		g_wasm.instance.exports.wasm_buffer_drop(wasm_buffer)
+	}
+	catch (e)
+	{
+		window.alert("WASM error while loading!\n\nProbably an unsupported mapper.")
+		throw e
+	}
 	
 	let canvas = document.getElementById("canvasScreen")
 	let ctx = canvas.getContext("2d")
 	g_screenBuffer = ctx.createImageData(256, 240)
 	
 	g_isRunning = true
-	window.requestAnimationFrame(() => runFrameWasm())
+	g_requestAnimationFrame = window.requestAnimationFrame(() => runFrameWasm())
 }
 
 
@@ -229,17 +250,36 @@ function runFrameJS(emu)
 		emu.run()
 	
 	if (g_isRunning)
-		window.requestAnimationFrame(() => runFrameJS(emu))
+		g_requestAnimationFrame = window.requestAnimationFrame(() => runFrameJS(emu))
 }
 
 
 function runFrameWasm()
 {
-	g_wasm.instance.exports.wasm_core_run_frame()
-	outputWasm()
+	const controller1 =
+		(keyRight  ? 0x80 : 0) |
+		(keyLeft   ? 0x40 : 0) |
+		(keyDown   ? 0x20 : 0) |
+		(keyUp     ? 0x10 : 0) |
+		(keyStart  ? 0x08 : 0) |
+		(keySelect ? 0x04 : 0) |
+		(keyB      ? 0x02 : 0) |
+		(keyA      ? 0x01 : 0)
+	
+	try
+	{
+		g_wasm.instance.exports.wasm_core_set_controller1(controller1)
+		g_wasm.instance.exports.wasm_core_run_frame()
+		outputWasm()
+	}
+	catch (e)
+	{
+		window.alert("WASM error while running!\n\nProbably a bad opcode.")
+		throw e
+	}
 	
 	if (g_isRunning)
-		window.requestAnimationFrame(() => runFrameWasm())
+		g_requestAnimationFrame = window.requestAnimationFrame(() => runFrameWasm())
 }
 
 

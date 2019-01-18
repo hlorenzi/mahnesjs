@@ -11,11 +11,16 @@ pub struct Core
 	pub cpu: Cpu,
 	pub ppu: Ppu,
 	
+	pub controller_shiftreg: u8,
+	pub controller_strobe: u8,
+	
 	pub ram: [u8; 0x800],
 	pub vram: [u8; 0x800],
 	pub palram: [u8; 0x20],
 	
-	pub screen: [u8; 256 * 240 * 4]
+	pub screen: [u8; 256 * 240 * 4],
+	
+	pub controller1: u8
 }
 
 
@@ -31,11 +36,16 @@ impl Core
 			cpu: Cpu::new(),
 			ppu: Ppu::new(),
 			
+			controller_shiftreg: 0,
+			controller_strobe: 0,
+			
 			ram: [0; 0x800],
 			vram: [0; 0x800],
 			palram: [0; 0x20],
 			
-			screen: [0; 256 * 240 * 4]
+			screen: [0; 256 * 240 * 4],
+			
+			controller1: 0
 		});
 		
 		let core_ptr = (&mut *core) as *mut Core;
@@ -98,10 +108,10 @@ impl Core
 		
 		else if addr == 0x4016
 		{
-			//const bit = this.controllerInput & 1
-			//this.controllerInput >>= 1
-			//this.controllerInput |= 0x80
-			0//bit
+			let bit = (*core).controller_shiftreg & 1;
+			(*core).controller_shiftreg >>= 1;
+			(*core).controller_shiftreg |= 0x80;
+			bit
 		}
 		
 		else
@@ -132,12 +142,32 @@ impl Core
 				_ => unreachable!()
 			}
 		}
+		
+		else if addr == 0x4014
+		{
+			if val != 0x40
+			{
+				for i in 0..256
+					{ (*core).ppu.oam[i] = (*core).ram[((val as usize) << 8) + i]; }
+			}
+		}
+		
+		else if addr == 0x4016
+		{
+			if (val & 1) != 0
+			{
+				(*core).controller_strobe = 0;
+				(*core).controller_shiftreg = (*core).controller1;
+			}
+			else
+				{ (*core).controller_strobe = 1; }
+		}
 	}
 	
 	
 	unsafe fn ppu_read(core: *mut Core, addr: u16) -> u8
 	{
-		let cartridge_read = (*core).cartridge.cpu_read(addr);
+		let cartridge_read = (*core).cartridge.ppu_read(addr);
 		
 		if addr < 0x2000
 			{ cartridge_read }
